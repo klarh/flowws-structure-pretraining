@@ -156,7 +156,7 @@ class GalaBottleneckAutoencoder(flowws.Stage):
             1,
             help='Number of vector-valued blocks to use',
         ),
-        Arg('rank', '-r', int, 2, help='Attention calculation rank'),
+        Arg('rank', None, int, 2, help='Attention calculation rank'),
         Arg(
             'activation',
             '-a',

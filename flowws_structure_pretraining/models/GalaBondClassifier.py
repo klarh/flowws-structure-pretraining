@@ -57,7 +57,7 @@ class GalaBondClassifier(flowws.Stage):
         ),
         Arg('dropout', '-d', float, 0.5, help='Dropout probability within network'),
         Arg('num_blocks', None, int, 1, help='Number of blocks to use'),
-        Arg('rank', '-r', int, 2, help='Attention calculation rank'),
+        Arg('rank', None, int, 2, help='Attention calculation rank'),
         Arg(
             'activation',
             '-a',
