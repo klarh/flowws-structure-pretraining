@@ -232,7 +232,8 @@ class GalaVectorAutoencoder(flowws.Stage):
                     rank=rank,
                     join_fun=join_fun,
                     merge_fun=merge_fun,
-                    invariant_mode=self.arguments['invar_mode'],
+                    invariant_mode=invar_mode,
+                    covariant_mode=covar_mode,
                 )(arg)
 
             arg = [last_x, last, w_in] if use_weights else [last_x, last]
@@ -243,7 +244,8 @@ class GalaVectorAutoencoder(flowws.Stage):
                 rank=rank,
                 join_fun=join_fun,
                 merge_fun=merge_fun,
-                invariant_mode=self.arguments['invar_mode'],
+                invariant_mode=invar_mode,
+                covariant_mode=covar_mode,
             )(arg)
 
             if block_nonlin:

@@ -66,6 +66,8 @@ def stack_vector_layers(
     merge_fun,
     n_dim=32,
     rank=2,
+    invar_mode='full',
+    covar_mode='full',
 ):
     pieces = []
     for _ in range(n_vectors):
@@ -74,8 +76,8 @@ def stack_vector_layers(
             valuefun(n_dim),
             scalefun(1),
             reduce=True,
-            covariant_mode='full',
-            invariant_mode='full',
+            invariant_mode=invar_mode,
+            covariant_mode=covar_mode,
             merge_fun=merge_fun,
             join_fun=join_fun,
             rank=rank,
@@ -340,7 +342,8 @@ class GalaBottleneckAutoencoder(flowws.Stage):
                     rank=rank,
                     join_fun=join_fun,
                     merge_fun=merge_fun,
-                    invariant_mode=self.arguments['invar_mode'],
+                    invariant_mode=invar_mode,
+                    covariant_mode=covar_mode,
                 )(arg)
 
             arg = [last_x, last, w_in] if use_weights else [last_x, last]
@@ -351,7 +354,8 @@ class GalaBottleneckAutoencoder(flowws.Stage):
                 rank=rank,
                 join_fun=join_fun,
                 merge_fun=merge_fun,
-                invariant_mode=self.arguments['invar_mode'],
+                invariant_mode=invar_mode,
+                covariant_mode=covar_mode,
             )(arg)
 
             if block_nonlin:
@@ -430,6 +434,8 @@ class GalaBottleneckAutoencoder(flowws.Stage):
             merge_fun,
             n_dim,
             rank,
+            invar_mode,
+            covar_mode,
         )
 
         reference_last_x = SVDLayer()(maybe_downcast_vector(reference_last_x))
@@ -449,7 +455,8 @@ class GalaBottleneckAutoencoder(flowws.Stage):
                 rank=rank,
                 join_fun=join_fun,
                 merge_fun=merge_fun,
-                invariant_mode=self.arguments['invar_mode'],
+                invariant_mode=invar_mode,
+                covariant_mode=covar_mode,
             )(arg)
 
         if self.arguments['variational']:

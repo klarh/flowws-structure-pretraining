@@ -73,6 +73,7 @@ class GalaBondClassifier(flowws.Stage):
             help='Create scale-invariant networks by normalizing neighbor distances (mean/min)',
         ),
         Arg('invar_mode', '-i', str, 'full', help='Rotation-invariant mode switch'),
+        Arg('covar_mode', '-c', str, 'full', help='Rotation-equivariant mode switch'),
         Arg(
             'score_normalization',
             None,
@@ -143,6 +144,8 @@ class GalaBondClassifier(flowws.Stage):
         rank = self.arguments['rank']
         activation = self.arguments['activation']
         distance_norm = self.arguments['normalize_distances']
+        invar_mode = self.arguments['invar_mode']
+        covar_mode = self.arguments['covar_mode']
 
         normalization_getter = lambda key: (
             NORMALIZATION_LAYERS[self.arguments.get(key + '_normalization', None)](rank)
@@ -208,7 +211,8 @@ class GalaBondClassifier(flowws.Stage):
                     rank=rank,
                     join_fun=join_fun,
                     merge_fun=merge_fun,
-                    invariant_mode=self.arguments['invar_mode'],
+                    invariant_mode=invar_mode,
+                    covariant_mode=covar_mode,
                 )(arg)
 
             arg = [last_x, last, w_in] if use_weights else [last_x, last]
@@ -219,7 +223,8 @@ class GalaBondClassifier(flowws.Stage):
                 rank=rank,
                 join_fun=join_fun,
                 merge_fun=merge_fun,
-                invariant_mode=self.arguments['invar_mode'],
+                invariant_mode=invar_mode,
+                covariant_mode=covar_mode,
             )(arg)
 
             if block_nonlin:
@@ -258,7 +263,8 @@ class GalaBondClassifier(flowws.Stage):
             rank=rank,
             join_fun=join_fun,
             merge_fun=merge_fun,
-            invariant_mode=self.arguments['invar_mode'],
+            invariant_mode=invar_mode,
+            covariant_mode=covar_mode,
         )(arg, return_invariants=True, return_attention=True)
 
         embedding = last
