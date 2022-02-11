@@ -1,0 +1,68 @@
+from .internal import index_frame, process_frame
+
+import flowws
+from flowws import Argument as Arg
+import numpy as np
+
+
+@flowws.add_stage_arguments
+@flowws.register_module
+class AutoencoderTask(flowws.Stage):
+    """Generate training data to reproduce input point clouds"""
+
+    ARGS = [
+        Arg(
+            'x_scale', '-x', float, 2.0, help='Scale by which to divide input distances'
+        ),
+        Arg('seed', '-s', int, 13, help='RNG seed for data generation'),
+        Arg('batch_size', '-b', int, 32, help='Batch size to use'),
+        Arg('loss', '-l', str, 'mse', help='Loss to use when training'),
+    ]
+
+    def run(self, scope, storage):
+        pad_size = scope['pad_size']
+        max_types = scope['max_types']
+        x_scale = self.arguments['x_scale']
+
+        nlist_generator = scope['nlist_generator']
+        frames = []
+        for frame in scope['loaded_frames']:
+            frame = process_frame(frame, nlist_generator, max_types)
+            frames.append(frame)
+
+        rs, ts, ws, ys, ctxs = [], [], [], [], []
+        for frame in frames:
+            samp = np.arange(len(frame.positions))
+            (rijs, tijs, wijs) = index_frame(frame, samp, pad_size, 2 * max_types)
+
+            rs.append(rijs)
+            ts.append(tijs)
+            ws.append(wijs)
+            ys.append(rijs)
+            ctxs.extend(len(rijs) * [frame.context])
+
+        rs = np.concatenate(rs, axis=0)
+        ts = np.concatenate(ts, axis=0)
+        ws = np.concatenate(ws, axis=0)
+        ys = np.concatenate(ys, axis=0)
+
+        rs /= x_scale
+        ys /= x_scale
+
+        shuf = np.arange(len(rs))
+        rng = np.random.default_rng(self.arguments['seed'])
+        rng.shuffle(shuf)
+
+        rs = rs[shuf]
+        ts = ts[shuf]
+        ws = ws[shuf]
+        ys = ys[shuf]
+
+        x = [rs, ts, ws] if scope.get('use_bond_weights', False) else [rs, ts]
+        y = ys
+
+        scope['x_train'] = x
+        scope['y_train'] = y
+        scope['x_contexts'] = ctxs
+        scope['loss'] = self.arguments['loss']
+        scope.setdefault('metrics', []).append('mae')
