@@ -5,7 +5,7 @@ import numpy as np
 
 @flowws.add_stage_arguments
 @flowws.register_module
-class NormalizeNeighborDistances(flowws.Stage):
+class NormalizeNeighborDistance(flowws.Stage):
     """Normalize the lengthscale of each loaded system
     based on the selected neighbor list calculation"""
 
