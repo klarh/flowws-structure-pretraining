@@ -55,7 +55,7 @@ class GalaBondRegressor(flowws.Stage):
             'concat',
             help='Function to use for merging node-level signals',
         ),
-        Arg('dropout', '-d', float, 0.5, help='Dropout probability within network'),
+        Arg('dropout', '-d', float, 0, help='Dropout probability within network'),
         Arg('num_blocks', None, int, 1, help='Number of blocks to use'),
         Arg('rank', None, int, 2, help='Attention calculation rank'),
         Arg(
