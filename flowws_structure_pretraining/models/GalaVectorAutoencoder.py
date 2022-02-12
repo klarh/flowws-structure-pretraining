@@ -103,6 +103,7 @@ class GalaVectorAutoencoder(flowws.Stage):
             'block_normalization',
             None,
             str,
+            'layer',
             help=(
                 'Normalizations to apply to the output of each attention block'
                 + NORMALIZATION_LAYER_DOC

@@ -96,6 +96,7 @@ class GalaBondRegressor(flowws.Stage):
             'block_normalization',
             None,
             str,
+            'layer',
             help=(
                 'Normalizations to apply to the output of each attention block'
                 + NORMALIZATION_LAYER_DOC
@@ -115,6 +116,7 @@ class GalaBondRegressor(flowws.Stage):
             'equivariant_value_normalization',
             None,
             str,
+            'layer',
             help=(
                 'Normalizations to apply to equivariant results'
                 + NORMALIZATION_LAYER_DOC
