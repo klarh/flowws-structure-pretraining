@@ -1,3 +1,4 @@
+import functools
 import json
 
 import flowws
@@ -16,7 +17,12 @@ class LoadModel(flowws.Stage):
 
     def run(self, scope, storage):
         assert 'filename' in self.arguments
+        self.scope = scope
+        self.storage = storage
+        scope.update(self.child_scope)
 
+    @functools.cached_property
+    def child_scope(self):
         with keras_gtar.Trajectory(self.arguments['filename'], 'r') as traj:
             weights = traj.get_weights()
             workflow = json.loads(traj.handle.readStr('workflow.json'))
@@ -29,8 +35,10 @@ class LoadModel(flowws.Stage):
                 stages.append(stage)
                 print(stage['type'])
             workflow['stages'] = stages
-            workflow['scope'] = scope
+            workflow['scope'] = self.scope
             child_workflow = flowws.Workflow.from_JSON(workflow)
-            child_workflow.storage = storage
-            scope.update(child_workflow.run())
-            scope['model'].set_weights(weights)
+            child_workflow.storage = self.storage
+            child_scope = child_workflow.run()
+            child_scope.pop('workflow')
+            child_scope['model'].set_weights(weights)
+        return child_scope
