@@ -41,6 +41,7 @@ class ShiftIdentificationTask(flowws.Stage):
             env_gen, self.arguments['seed'] + 2
         )
         scope['data_generator'] = self.batch_generator(env_gen, 0, evaluate=True)
+        scope['x_scale'] = self.arguments['x_scale']
         scope['loss'] = self.arguments['loss']
         scope.setdefault('metrics', []).append('mae')
 

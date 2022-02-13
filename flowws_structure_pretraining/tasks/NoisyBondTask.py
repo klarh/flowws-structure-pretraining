@@ -46,6 +46,7 @@ class NoisyBondTask(flowws.Stage):
             env_gen, self.arguments['seed'] + 2
         )
         scope['data_generator'] = self.batch_generator(env_gen, 0, evaluate=True)
+        scope['x_scale'] = self.arguments['x_scale']
         scope['num_classes'] = 2
         scope['loss'] = 'sparse_categorical_crossentropy'
         scope.setdefault('metrics', []).append('accuracy')

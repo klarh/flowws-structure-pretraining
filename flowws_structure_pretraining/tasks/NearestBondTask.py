@@ -72,6 +72,7 @@ class NearestBondTask(flowws.Stage):
 
         scope['x_train'] = x
         scope['y_train'] = y
+        scope['x_scale'] = x_scale
         scope['x_contexts'] = ctxs
         scope['loss'] = self.arguments['loss']
         scope.setdefault('metrics', []).append('mae')
