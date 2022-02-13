@@ -76,7 +76,7 @@ class DenoisingTask(flowws.Stage):
                 y /= x_scale
 
                 max_size = max(max_size, len(r))
-                rs.append(r)
+                rs.append(x)
                 vs.append(v)
                 ys.append(y)
                 ws.append(w)
