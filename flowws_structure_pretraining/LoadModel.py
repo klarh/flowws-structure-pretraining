@@ -3,7 +3,22 @@ import json
 
 import flowws
 from flowws import Argument as Arg
+import gtar
 import keras_gtar
+import numpy as np
+
+
+class ArrayVisual:
+    def __init__(self, values, ylabel, xlabel='epoch'):
+        self.values = values
+        self.ylabel = ylabel
+        self.xlabel = xlabel
+
+    def draw_matplotlib(self, fig):
+        ax = fig.add_subplot()
+        ax.plot(self.values)
+        ax.set_xlabel(self.xlabel)
+        ax.set_ylabel(self.ylabel)
 
 
 @flowws.add_stage_arguments
@@ -20,6 +35,11 @@ class LoadModel(flowws.Stage):
         self.scope = scope
         self.storage = storage
         scope.update(self.child_scope)
+
+        visuals = scope.setdefault('visuals', [])
+        for v in self.loaded_visuals:
+            if v not in visuals:
+                visuals.append(v)
 
     @functools.cached_property
     def child_scope(self):
@@ -41,4 +61,20 @@ class LoadModel(flowws.Stage):
             child_scope = child_workflow.run()
             child_scope.pop('workflow')
             child_scope['model'].set_weights(weights)
+
+            self.loaded_visuals = self.get_visuals(traj.handle)
+
         return child_scope
+
+    def get_visuals(self, handle):
+        result = []
+
+        records = handle.getRecordTypes()
+        continuous_records = [
+            r for r in records if r.getBehavior() == gtar.Behavior.Continuous
+        ]
+        for rec in continuous_records:
+            frames = handle.queryFrames(rec)
+            value = np.concatenate([handle.getRecord(rec, f) for f in frames])
+            result.append(ArrayVisual(value, rec.getName()))
+        return result
