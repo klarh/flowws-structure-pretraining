@@ -37,9 +37,10 @@ class EvaluateEmbedding(flowws.Stage):
         for (x, y, ctx) in scope['data_generator']:
             xs.append(model.predict_on_batch(x))
             ctxs.extend(ctx)
-        xs = np.concatenate(xs, axis=0)
-        scope['embedding'] = xs
-        scope['embedding_contexts'] = ctxs
+        if xs:
+            xs = np.concatenate(xs, axis=0)
+            scope['embedding'] = xs
+            scope['embedding_contexts'] = ctxs
 
     def evaluate(self, model, scope):
         xs = model.predict(scope['x_train'], batch_size=self.arguments['batch_size'])
