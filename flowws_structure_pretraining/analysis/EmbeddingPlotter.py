@@ -75,7 +75,7 @@ class EmbeddingPlotter(flowws.Stage):
 
         scope.setdefault('visuals', []).append(self)
 
-    def plot_matplotlib(self, fig):
+    def draw_matplotlib(self, fig):
         ax = fig.add_subplot()
         remap = self.remap
 
