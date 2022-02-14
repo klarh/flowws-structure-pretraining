@@ -75,12 +75,40 @@ class EmbeddingPlotter(flowws.Stage):
 
         scope.setdefault('visuals', []).append(self)
 
-    def draw_matplotlib(self, fig):
-        ax = fig.add_subplot()
-        remap = self.remap
+    def get_colormap(self, remap):
+        remap_inverse_dicts = [dict(v) for v in remap.inverse]
+        file_frames = collections.defaultdict(set)
+        get_key = lambda d: d.get('fname', d.get('structure', 'none'))
+        get_index = lambda d: d.get('frame', d.get('noise', -1))
+        for d in remap_inverse_dicts:
+            file_frames[get_key(d)].add(get_index(d))
+        file_frames = {k: list(sorted(v)) for (k, v) in file_frames.items()}
 
-        progressive = len(remap) > self.arguments['progressive_threshold']
-        if progressive:
+        if any(len(v) > 1 for v in file_frames.values()):
+            # use special file-frame colormap
+            colors = []
+            file_starts = dict(
+                zip(
+                    sorted(file_frames),
+                    np.linspace(0, 3, len(file_frames), endpoint=False),
+                )
+            )
+            file_thetas = {
+                k: [0.5]
+                if len(v) == 1
+                else np.linspace(0.2, 0.8, len(v), endpoint=True)
+                for (k, v) in file_frames.items()
+            }
+            file_colors = {
+                k: plato.cmap.cubehelix(file_thetas[k], s=file_starts[k], r=0, h=1.2)
+                for k in file_frames
+            }
+            for d in remap_inverse_dicts:
+                key = get_key(d)
+                index = file_frames[key].index(get_index(d))
+                colors.append(file_colors[key][index])
+            cmap = matplotlib.colors.ListedColormap(colors)
+        elif len(remap) > self.arguments['progressive_threshold']:
             cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
                 'custom_cubehelix',
                 plato.cmap.cubehelix(np.linspace(0.2, 0.8, len(remap), endpoint=True)),
@@ -91,6 +119,13 @@ class EmbeddingPlotter(flowws.Stage):
                     np.linspace(0, 2 * np.pi, len(remap), endpoint=False)
                 )
             )
+        return cmap
+
+    def draw_matplotlib(self, fig):
+        ax = fig.add_subplot()
+        remap = self.remap
+
+        cmap = self.get_colormap(remap)
         points = ax.scatter(
             self.x[:, 0],
             self.x[:, 1],
@@ -100,10 +135,11 @@ class EmbeddingPlotter(flowws.Stage):
             vmin=-0.5,
             vmax=len(self.remap) - 0.5,
         )
-        if progressive:
+        if len(remap) > self.arguments['progressive_threshold']:
             cbar = fig.colorbar(points)
         else:
             cbar = fig.colorbar(
                 points, ticks=np.linspace(0, len(remap), len(remap), endpoint=False)
             )
             cbar.ax.set_yticklabels(remap.inverse)
+        cbar.solids.set(alpha=1)
