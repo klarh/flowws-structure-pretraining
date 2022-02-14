@@ -48,6 +48,7 @@ module_names = [
     'EmbeddingPlotter',
     'EvaluateEmbedding',
     'PCAEmbedding',
+    'UMAPEmbedding',
 ]
 add_subpkg(subpkg, module_names)
 
