@@ -94,6 +94,6 @@ class DenoisingTask(flowws.Stage):
                 x = x[:-1]
 
             if evaluate:
-                yield x, pad(ys, max_size), ctxs
+                yield x, pad(ys, max_size, 3), ctxs
             else:
-                yield x, pad(ys, max_size)
+                yield x, pad(ys, max_size, 3)
