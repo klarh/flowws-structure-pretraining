@@ -21,12 +21,10 @@ class UMAPEmbedding(flowws.Stage):
 
     def run(self, scope, storage):
         x = scope['embedding']
-        shape = list(x.shape[:-1])
         umap_ = scope['umap'] = umap.UMAP(
             n_neighbors=self.arguments['n_neighbors'],
             n_components=self.arguments['n_components'],
             min_dist=self.arguments['min_dist'],
         )
-        y = umap_.fit_transform(x.reshape((-1, x.shape[-1])))
-        y = y.reshape(shape + [y.shape[-1]])
+        y = umap_.fit_transform(x)
         scope['embedding_umap'] = y
