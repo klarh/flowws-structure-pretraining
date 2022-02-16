@@ -136,6 +136,13 @@ class GalaVectorAutoencoder(flowws.Stage):
             False,
             help='If True, use multivector intermediates for calculations',
         ),
+        Arg(
+            'drop_geometric_embeddings',
+            None,
+            bool,
+            False,
+            help='If True, use vector inputs rather than geometric accumulations around the embedding layer',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -293,10 +300,14 @@ class GalaVectorAutoencoder(flowws.Stage):
         elif distance_norm:
             raise NotImplementedError(distance_norm)
 
-        last_x = maybe_upcast_vector(last_x)
+        last_x = saved_x_in = maybe_upcast_vector(last_x)
         last = keras.layers.Dense(n_dim)(v_in)
-        for _ in range(num_blocks):
+        for _ in range(num_blocks - 1):
             last_x, last = make_block(last_x, last)
+
+        if self.arguments['drop_geometric_embeddings']:
+            last_x = saved_x_in
+        last_x, last = make_block(last_x, last)
 
         embedding = last
 
