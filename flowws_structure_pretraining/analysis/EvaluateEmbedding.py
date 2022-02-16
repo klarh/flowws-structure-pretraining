@@ -1,3 +1,5 @@
+import functools
+
 import flowws
 from flowws import Argument as Arg
 import numpy as np
@@ -20,24 +22,29 @@ class EvaluateEmbedding(flowws.Stage):
     ]
 
     def run(self, scope, storage):
-        model = scope['embedding_model']
-
-        if 'data_generator' in scope:
-            self.evaluate_generator(model, scope)
-        else:
-            self.evaluate(model, scope)
-
-        scope['neighbor_segments'] = np.cumsum(np.insert(scope['neighbor_counts'], 0, 0))[:-1]
+        self.scope = scope
+        scope.update(self.value_dict)
 
         if self.arguments['average_bonds']:
             x = scope['embedding']
             s = scope['neighbor_segments']
             N = scope['neighbor_counts'][:, None]
-            scope['embedding'] = np.add.reduceat(x, s)/N
+            scope['embedding'] = np.add.reduceat(x, s) / N
         else:
-            scope['embedding_contexts'] = np.repeat(scope['embedding_contexts'], scope['neighbor_counts'])
+            scope['embedding_contexts'] = np.repeat(
+                scope['embedding_contexts'], scope['neighbor_counts']
+            )
+
+    @functools.cached_property
+    def value_dict(self):
+        model = self.scope['embedding_model']
+        if 'data_generator' in self.scope:
+            return self.evaluate_generator(model, self.scope)
+        else:
+            return self.evaluate(model, self.scope)
 
     def evaluate_generator(self, model, scope):
+        result = {}
         xs = []
         counts = []
         ctxs = []
@@ -49,15 +56,24 @@ class EvaluateEmbedding(flowws.Stage):
             xs.append(pred[filt])
             counts.append(neighbor_count)
             ctxs.extend(ctx)
-        if xs:
-            scope['embedding'] = np.concatenate(xs, axis=0)
-            scope['neighbor_counts'] = np.concatenate(counts)
-            scope['embedding_contexts'] = ctxs
+
+        result['embedding'] = np.concatenate(xs, axis=0)
+        result['neighbor_counts'] = np.concatenate(counts)
+        result['embedding_contexts'] = ctxs
+        result['neighbor_segments'] = np.cumsum(
+            np.insert(result['neighbor_counts'], 0, 0)
+        )[:-1]
+        return result
 
     def evaluate(self, model, scope):
+        result = {}
         pred = model.predict(scope['x_train'], batch_size=self.arguments['batch_size'])
         filt = np.any(scope['x_train'][0] != 0, axis=-1)
         neighbor_count = np.sum(filt, axis=-1)
-        scope['embedding'] = pred[filt]
-        scope['neighbor_counts'] = neighbor_count
-        scope['embedding_contexts'] = scope['x_contexts']
+        result['embedding'] = pred[filt]
+        result['neighbor_counts'] = neighbor_count
+        result['embedding_contexts'] = scope['x_contexts']
+        result['neighbor_segments'] = np.cumsum(
+            np.insert(result['neighbor_counts'], 0, 0)
+        )[:-1]
+        return result
