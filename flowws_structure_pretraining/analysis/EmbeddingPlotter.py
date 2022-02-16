@@ -39,6 +39,8 @@ class EmbeddingPlotter(flowws.Stage):
             16,
             help='If more keys than this are given, use a progressive colormap',
         ),
+        Arg('component_x', '-x', int, 0, help='Embedding component to plot on x axis'),
+        Arg('component_y', '-y', int, 1, help='Embedding component to plot on y axis'),
     ]
 
     def run(self, scope, storage):
@@ -53,6 +55,14 @@ class EmbeddingPlotter(flowws.Stage):
             key = self.arguments['key']
 
         x = scope[key]
+
+        self.arg_specifications['component_x'].valid_values = flowws.Range(
+            0, x.shape[-1], (True, False)
+        )
+        self.arg_specifications['component_y'].valid_values = flowws.Range(
+            0, x.shape[-1], (True, False)
+        )
+
         remap = Remap()
         contexts = np.array(
             [remap(frozenset(d.items())) for d in scope['embedding_contexts']]
@@ -123,8 +133,8 @@ class EmbeddingPlotter(flowws.Stage):
 
         cmap = self.get_colormap(remap)
         points = ax.scatter(
-            self.x[:, 0],
-            self.x[:, 1],
+            self.x[:, self.arguments['component_x']],
+            self.x[:, self.arguments['component_y']],
             c=self.contexts,
             cmap=cmap,
             alpha=0.5,
