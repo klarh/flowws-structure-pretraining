@@ -33,6 +33,7 @@ module_names = [
     'NearestNeighbors',
     'NormalizeNeighborDistance',
     'PyriodicLoader',
+    'SANNeighbors',
     'VoronoiNeighbors',
 ]
 for name in module_names:
