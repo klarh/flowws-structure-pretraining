@@ -63,9 +63,19 @@ class EmbeddingPlotter(flowws.Stage):
             0, x.shape[-1], (True, False)
         )
 
+        found_key_values = collections.defaultdict(set)
+        embedding_contexts = [dict(d) for d in scope['embedding_contexts']]
+        for d in embedding_contexts:
+            for (k, v) in d.items():
+                found_key_values[k].add(v)
+        to_remove = [k for (k, vs) in found_key_values.items() if len(vs) == 1]
+        for d in embedding_contexts:
+            for k in to_remove:
+                d.pop(k, None)
+
         remap = Remap()
         contexts = np.array(
-            [remap(frozenset(d.items())) for d in scope['embedding_contexts']]
+            [remap(frozenset(d.items())) for d in embedding_contexts]
         )
 
         if self.arguments['shuffle']:
@@ -147,5 +157,5 @@ class EmbeddingPlotter(flowws.Stage):
             cbar = fig.colorbar(
                 points, ticks=np.linspace(0, len(remap), len(remap), endpoint=False)
             )
-            cbar.ax.set_yticklabels(remap.inverse)
+            cbar.ax.set_yticklabels(list(map(dict, remap.inverse)))
         cbar.solids.set(alpha=1)
