@@ -41,19 +41,22 @@ class DistanceNeighbors(flowws.Stage):
         rcut = self.arguments['r_cut']
         if 'rdf_shells' in self.arguments:
             done = False
-            rdf_rmax = 2 * self.arguments['r_cut']
+            rdf_rmax = min(0.499 * np.min(box[:3]), 2 * self.arguments['r_cut'])
             while not done:
                 rdf = freud.density.RDF(
                     int(rdf_rmax / self.arguments['rdf_distance']), rdf_rmax
                 )
-                rdf.compute((box, positions))
+                try:
+                    rdf.compute((box, positions))
+                except RuntimeError:
+                    done = True
+                    break
 
                 r = rdf.bin_centers
                 y = rdf.rdf
                 dr = np.diff(rdf.bounds) / rdf.nbins
                 v = np.diff(np.cumsum(r * dr * y))
-                dist = np.argmax(np.convolve(v, v.conj(), mode='same'))
-                dist //= self.arguments['rdf_smoothing']
+                dist = self.arguments['rdf_smoothing']
                 filt = np.full(dist, 1.0 / dist)
                 v = np.convolve(v, filt, mode='same')
                 d = np.diff(v)
@@ -73,10 +76,13 @@ class DistanceNeighbors(flowws.Stage):
                         shells.append(index)
                         take_minimum = False
 
-                if len(shells) > self.arguments['rdf_shells']:
+                if len(shells) >= self.arguments['rdf_shells']:
                     index = shells[self.arguments['rdf_shells'] - 1]
                     rcut = r[index]
                     done = rdf.nbins - index > self.arguments['rdf_smoothing']
+
+                # end early if we can't find enough distinct shells
+                done = done or np.sum(v) > 4 * self.arguments['max_neighbors']
 
                 if not done:
                     rdf_rmax *= 1.25
