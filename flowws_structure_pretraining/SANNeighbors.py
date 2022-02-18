@@ -24,12 +24,19 @@ class SANN:
     def compute(self, query_points):
         done = False
         r_guess = self.r_guess
+        r_max = np.min(self.system.box[:3]) / 2
+        clipped_checks = 0
         while not done:
             qargs = dict(mode='ball', r_max=r_guess, exclude_ii=True)
             q = self._nq.query(query_points, qargs)
             nl = q.toNeighborList(sort_by_distance=True)
             (done, result) = self.create_neighbor_list(nl)
             r_guess *= self.r_scale
+            if r_guess > r_max:
+                if clipped_checks:
+                    raise ValueError('Can\'t find enough neighbors in box')
+                clipped_checks += 1
+                r_guess = r_max * 0.999
         return result
 
     def create_neighbor_list(self, nl):
@@ -38,6 +45,9 @@ class SANN:
         all_d_s = nl.distances
         segments = nl.segments
         counts = nl.neighbor_counts
+
+        if np.any(counts < 3):
+            return (False, None)
 
         cumulative_ds = np.cumsum(all_d_s)
         same_i = all_i_s[1:] == all_i_s[:-1]
@@ -67,16 +77,12 @@ class SANNeighbors(flowws.Stage):
     https://aip.scitation.org/doi/10.1063/1.4729313
     """
 
-    ARGS = [
-        Arg('neighbor_count', '-n', int, 16, help='Number of neighbors to pad to'),
-    ]
+    ARGS = []
 
     System = collections.namedtuple('System', ['box', 'positions'])
 
     def run(self, scope, storage):
         scope['nlist_generator'] = self.get_nlist
-        scope['pad_size'] = self.arguments['neighbor_count']
-        scope['neighborhood_size'] = self.arguments['neighbor_count']
 
     def get_nlist(self, box, positions):
         system = self.System(box, positions)

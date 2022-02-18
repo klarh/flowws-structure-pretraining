@@ -20,7 +20,6 @@ class NearestBondTask(flowws.Stage):
     ]
 
     def run(self, scope, storage):
-        pad_size = scope['pad_size']
         max_types = scope['max_types']
         x_scale = self.arguments['x_scale']
 
@@ -29,6 +28,11 @@ class NearestBondTask(flowws.Stage):
         for frame in scope['loaded_frames']:
             frame = process_frame(frame, nlist_generator, max_types)
             frames.append(frame)
+
+        if 'pad_size' in scope:
+            pad_size = scope['pad_size']
+        else:
+            pad_size = max(np.max(frame.nlist.neighbor_counts) for frame in frames)
 
         rs, ts, ws, ys, ctxs = [], [], [], [], []
         for frame in frames:

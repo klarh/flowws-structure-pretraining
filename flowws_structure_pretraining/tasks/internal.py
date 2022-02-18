@@ -16,6 +16,7 @@ Frame = collections.namedtuple(
         "weights",
         "rijs",
         "tijs",
+        "nlist",
     ],
 )
 
@@ -35,7 +36,9 @@ def process_frame(frame, nlist_generator, max_types):
     rijs = positions[index_j] - positions[index_i]
     rijs = freud.box.Box.from_box(box).wrap(rijs)
     tijs = encode_types(types[index_i], types[index_j], None, max_types)
-    return Frame(box, positions, types, context, index_i, index_j, weights, rijs, tijs)
+    return Frame(
+        box, positions, types, context, index_i, index_j, weights, rijs, tijs, nl
+    )
 
 
 def encode_types(source_types, dest_types, N, max_types):
