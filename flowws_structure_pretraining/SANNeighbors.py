@@ -7,10 +7,11 @@ import numpy as np
 
 
 class SANN:
-    def __init__(self, system, r_guess=2.0, r_scale=1.25):
+    def __init__(self, system, r_guess=2.0, r_scale=1.25, ball_count=4):
         self.system = system
         self.r_guess = r_guess
         self.r_scale = r_scale
+        self.ball_count = ball_count
 
     @property
     def system(self):
@@ -25,13 +26,25 @@ class SANN:
         done = False
         r_guess = self.r_guess
         r_max = np.min(self.system.box[:3]) / 2
+        total_checks = 0
         clipped_checks = 0
         while not done:
-            qargs = dict(mode='ball', r_max=r_guess, exclude_ii=True)
+            if total_checks < self.ball_count:
+                qargs = dict(mode='ball', r_max=r_guess, exclude_ii=True)
+            else:
+                N = 16
+                for _ in range(total_checks):
+                    N = max(N + 1, int(self.r_scale * N))
+                qargs = dict(
+                    mode='nearest', r_guess=r_guess, num_neighbors=N, exclude_ii=True
+                )
+
             q = self._nq.query(query_points, qargs)
             nl = q.toNeighborList(sort_by_distance=True)
             (done, result) = self.create_neighbor_list(nl)
+
             r_guess *= self.r_scale
+            total_checks += 1
             if r_guess > r_max:
                 if clipped_checks:
                     raise ValueError('Can\'t find enough neighbors in box')
