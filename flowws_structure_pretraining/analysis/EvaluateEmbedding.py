@@ -28,7 +28,7 @@ class EvaluateEmbedding(flowws.Stage):
         if self.arguments['average_bonds']:
             x = scope['embedding']
             s = scope['neighbor_segments']
-            N = scope['neighbor_counts'][:, None]
+            N = np.clip(scope['neighbor_counts'][:, None], 1, 1e8)
             scope['embedding'] = np.add.reduceat(x, s) / N
         else:
             scope['embedding_contexts'] = np.repeat(
