@@ -147,6 +147,7 @@ class GalaBondClassifier(flowws.Stage):
         distance_norm = self.arguments['normalize_distances']
         invar_mode = self.arguments['invar_mode']
         covar_mode = self.arguments['covar_mode']
+        num_classes = scope.get('num_classes', 2)
 
         normalization_getter = lambda key: (
             NORMALIZATION_LAYERS[self.arguments.get(key + '_normalization', None)](rank)
@@ -270,7 +271,7 @@ class GalaBondClassifier(flowws.Stage):
 
         embedding = last
 
-        last = keras.layers.Dense(2)(last)
+        last = keras.layers.Dense(num_classes)(last)
         last = keras.layers.Activation('softmax')(last)
 
         scope['input_symbol'] = inputs

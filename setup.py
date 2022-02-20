@@ -66,6 +66,7 @@ subpkg = 'tasks'
 module_names = [
     'AutoencoderTask',
     'DenoisingTask',
+    'FrameClassificationTask',
     'NearestBondTask',
     'NoisyBondTask',
     'ShiftIdentificationTask',
