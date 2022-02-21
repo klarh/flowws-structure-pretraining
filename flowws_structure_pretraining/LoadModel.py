@@ -28,6 +28,12 @@ class LoadModel(flowws.Stage):
 
     ARGS = [
         Arg('filename', '-f', str, help='Names of file to load'),
+        Arg(
+            'subsample',
+            '-s',
+            float,
+            help='Override the subsampling operation of task modules loaded here',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -52,8 +58,14 @@ class LoadModel(flowws.Stage):
                     continue
                 elif stage['type'] in ('Train', 'Save'):
                     continue
-                elif stage['type'] == 'FrameClassificationTask':
+
+                if stage['type'] == 'FrameClassificationTask':
                     self.scope['num_classes'] = len(weights[-1])
+                if stage['type'].endswith('Task'):
+                    stage['arguments']['subsample'] = self.arguments.get(
+                        'subsample', None
+                    )
+
                 stages.append(stage)
                 print(stage['type'])
             workflow['stages'] = stages
