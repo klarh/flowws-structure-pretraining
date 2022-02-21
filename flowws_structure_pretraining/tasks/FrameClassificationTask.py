@@ -15,6 +15,7 @@ class FrameClassificationTask(flowws.Stage):
             'x_scale', '-x', float, 2.0, help='Scale by which to divide input distances'
         ),
         Arg('seed', '-s', int, 13, help='RNG seed for data generation'),
+        Arg('subsample', None, float, help='Take only the given fraction of data'),
     ]
 
     def run(self, scope, storage):
@@ -56,6 +57,11 @@ class FrameClassificationTask(flowws.Stage):
         shuf = np.arange(len(rs))
         rng = np.random.default_rng(self.arguments['seed'])
         rng.shuffle(shuf)
+
+        if self.arguments['subsample']:
+            filt = rng.uniform(size=len(shuf))
+            filt = filt < self.arguments['subsample']
+            shuf = shuf[filt]
 
         rs = rs[shuf]
         ts = ts[shuf]

@@ -17,6 +17,7 @@ class AutoencoderTask(flowws.Stage):
         Arg('seed', '-s', int, 13, help='RNG seed for data generation'),
         Arg('batch_size', '-b', int, 32, help='Batch size to use'),
         Arg('loss', '-l', str, 'mse', help='Loss to use when training'),
+        Arg('subsample', None, float, help='Take only the given fraction of data'),
     ]
 
     def run(self, scope, storage):
@@ -56,6 +57,11 @@ class AutoencoderTask(flowws.Stage):
         shuf = np.arange(len(rs))
         rng = np.random.default_rng(self.arguments['seed'])
         rng.shuffle(shuf)
+
+        if self.arguments['subsample']:
+            filt = rng.uniform(size=len(shuf))
+            filt = filt < self.arguments['subsample']
+            shuf = shuf[filt]
 
         rs = rs[shuf]
         ts = ts[shuf]

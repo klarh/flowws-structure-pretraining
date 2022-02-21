@@ -18,6 +18,19 @@ class ShiftIdentificationTask(flowws.Stage):
         Arg('batch_size', '-b', int, 32, help='Batch size to use'),
         Arg('loss', '-l', str, 'mse', help='Loss to use when training'),
         Arg('scale', None, float, 1e-2, help='Magnitude of point cloud shift'),
+        Arg(
+            'subsample',
+            None,
+            float,
+            help='Take only the given fraction of data for evaluation',
+        ),
+        Arg(
+            'validation_split',
+            '-v',
+            float,
+            0.3,
+            help='Fraction of data to be used for validation',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -33,20 +46,37 @@ class ShiftIdentificationTask(flowws.Stage):
 
         env_gen = EnvironmentGenerator(frames)
 
-        scope['train_generator'] = self.batch_generator(env_gen, self.arguments['seed'])
+        train_sample = np.array([self.arguments['validation_split'], 1.0])
+        val_sample = np.array([0, self.arguments['validation_split']])
+
+        if self.arguments['subsample']:
+            train_sample[1] = (
+                train_sample[0] + np.diff(train_sample) * self.arguments['subsample']
+            )
+            val_sample[1] = (
+                val_sample[0] + np.diff(val_sample) * self.arguments['subsample']
+            )
+
+        scope['train_generator'] = self.batch_generator(
+            env_gen, self.arguments['seed'], False, train_sample
+        )
         scope['validation_generator'] = self.batch_generator(
-            env_gen, self.arguments['seed'] + 1
+            env_gen, self.arguments['seed'], False, val_sample
         )
         scope['test_generator'] = self.batch_generator(
             env_gen, self.arguments['seed'] + 2
         )
-        scope['data_generator'] = self.batch_generator(env_gen, 0, evaluate=True)
+        scope['data_generator'] = self.batch_generator(
+            env_gen, 0, True, self.arguments.get('subsample', 1)
+        )
         scope['x_scale'] = self.arguments['x_scale']
         scope['loss'] = self.arguments['loss']
         scope.setdefault('metrics', []).append('mae')
 
-    def batch_generator(self, env_gen, seed=13, round_neighbors=4, evaluate=False):
-        env_gen = env_gen.sample(seed, not evaluate)
+    def batch_generator(
+        self, env_gen, seed=13, round_neighbors=4, evaluate=False, subsample=None
+    ):
+        env_gen = env_gen.sample(seed, not evaluate, subsample)
         rng = np.random.default_rng(seed + 1)
         x_scale = self.arguments['x_scale']
         batch_size = self.arguments['batch_size']

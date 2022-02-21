@@ -90,18 +90,35 @@ class EnvironmentGenerator:
             self.frame_sizes
         )
 
-    def sample(self, seed=13, loop=True):
+    def sample(self, seed=13, loop=True, subsample=None):
+        rng = np.random.default_rng(seed)
+        particle_indices = []
+
+        if subsample:
+            if np.array(subsample).size == 1:
+                if subsample < 0:
+                    subsample = (1.0 + subsample, 1)
+                else:
+                    subsample = (0, subsample)
+            left, right = subsample
+            for frame in self.frames:
+                filt = rng.uniform(size=len(frame.positions))
+                filt = np.logical_and(filt >= left, filt < right)
+                particle_indices.append(np.where(filt)[0])
+        else:
+            for frame in self.frames:
+                particle_indices.append(np.arange(len(frame.positions)))
+
         if loop:
-            rng = np.random.default_rng(seed)
             frame_indices = np.arange(len(self.frames))
 
             while True:
                 frame_i = rng.choice(frame_indices, p=self.frame_probas)
-                particle = rng.integers(0, len(self.frames[frame_i].positions))
+                particle = rng.choice(particle_indices[frame_i])
                 yield self.produce(frame_i, particle)
         else:
             for frame_i in range(len(self.frames)):
-                for particle in range(len(self.frames[frame_i].positions)):
+                for particle in particle_indices[frame_i]:
                     yield self.produce(frame_i, particle)
 
     def produce(self, frame_i, particle):
