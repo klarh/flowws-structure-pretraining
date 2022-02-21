@@ -62,6 +62,10 @@ class EmbeddingPlotter(flowws.Stage):
                 d.pop(k, None)
 
         remap = Remap()
+        unique_contexts = set(map(lambda x: frozenset(x.items()), embedding_contexts))
+        context_sort = lambda v: tuple(sorted(v))
+        for v in sorted(unique_contexts, key=context_sort):
+            remap(v)
         contexts = np.array([remap(frozenset(d.items())) for d in embedding_contexts])
 
         if self.arguments['shuffle']:
