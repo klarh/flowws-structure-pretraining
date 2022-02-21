@@ -55,7 +55,7 @@ class DenoisingTask(flowws.Stage):
         train_sample = np.array([self.arguments['validation_split'], 1.0])
         val_sample = np.array([0, self.arguments['validation_split']])
 
-        if self.arguments['subsample']:
+        if 'subsample' in self.arguments:
             train_sample[1] = (
                 train_sample[0] + np.diff(train_sample) * self.arguments['subsample']
             )
@@ -64,16 +64,16 @@ class DenoisingTask(flowws.Stage):
             )
 
         scope['train_generator'] = self.batch_generator(
-            env_gen, self.arguments['seed'], False, train_sample
+            env_gen, self.arguments['seed'], evaluate=False, subsample=train_sample
         )
         scope['validation_generator'] = self.batch_generator(
-            env_gen, self.arguments['seed'], False, val_sample
+            env_gen, self.arguments['seed'], evaluate=False, subsample=val_sample
         )
         scope['test_generator'] = self.batch_generator(
             env_gen, self.arguments['seed'] + 2
         )
         scope['data_generator'] = self.batch_generator(
-            env_gen, 0, True, self.arguments.get('subsample', 1)
+            env_gen, 0, evaluate=True, subsample=self.arguments.get('subsample', 1)
         )
         scope['x_scale'] = self.arguments['x_scale']
         scope['loss'] = self.arguments['loss']

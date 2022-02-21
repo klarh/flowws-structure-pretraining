@@ -94,7 +94,7 @@ class EnvironmentGenerator:
         rng = np.random.default_rng(seed)
         particle_indices = []
 
-        if subsample:
+        if subsample is not None:
             if np.array(subsample).size == 1:
                 if subsample < 0:
                     subsample = (1.0 + subsample, 1)
