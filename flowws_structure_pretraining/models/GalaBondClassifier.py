@@ -130,6 +130,12 @@ class GalaBondClassifier(flowws.Stage):
             False,
             help='If True, use multivector intermediates for calculations',
         ),
+        Arg(
+            'embedding_dimension',
+            None,
+            int,
+            help='Dimension to use for pre-classification projection embedding',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -270,6 +276,10 @@ class GalaBondClassifier(flowws.Stage):
         )(arg, return_invariants=True, return_attention=True)
 
         embedding = last
+
+        if 'embedding_dimension' in self.arguments:
+            last = keras.layers.Dense(self.arguments['embedding_dimension'])(last)
+            embedding = last
 
         last = keras.layers.Dense(num_classes)(last)
         last = keras.layers.Activation('softmax')(last)
