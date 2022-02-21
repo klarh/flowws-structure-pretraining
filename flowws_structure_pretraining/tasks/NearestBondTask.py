@@ -70,6 +70,7 @@ class NearestBondTask(flowws.Stage):
         ts = ts[shuf]
         ws = ws[shuf]
         ys = ys[shuf]
+        ctxs = np.array(ctxs, dtype=object)[shuf]
 
         x = [rs, ts, ws] if scope.get('use_bond_weights', False) else [rs, ts]
         y = ys
