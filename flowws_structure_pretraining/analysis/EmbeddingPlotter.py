@@ -34,7 +34,9 @@ class EmbeddingPlotter(flowws.Stage):
             valid_keys = [
                 k
                 for (k, v) in sorted(scope.items())
-                if k.startswith('embed') and isinstance(v, np.ndarray)
+                if k.startswith('embed')
+                and isinstance(v, np.ndarray)
+                and v.dtype != object
             ]
             key = valid_keys[-1]
         else:
