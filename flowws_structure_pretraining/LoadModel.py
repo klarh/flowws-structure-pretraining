@@ -52,6 +52,8 @@ class LoadModel(flowws.Stage):
                     continue
                 elif stage['type'] in ('Train', 'Save'):
                     continue
+                elif stage['type'] == 'FrameClassificationTask':
+                    self.scope['num_classes'] = len(weights[-1])
                 stages.append(stage)
                 print(stage['type'])
             workflow['stages'] = stages

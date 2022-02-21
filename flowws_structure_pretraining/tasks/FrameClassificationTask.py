@@ -72,5 +72,5 @@ class FrameClassificationTask(flowws.Stage):
         scope['x_contexts'] = ctxs
         scope['loss'] = 'sparse_categorical_crossentropy'
         scope['label_remap'] = remap
-        scope['num_classes'] = len(remap)
+        scope.setdefault('num_classes', len(remap))
         scope.setdefault('metrics', []).append('accuracy')
