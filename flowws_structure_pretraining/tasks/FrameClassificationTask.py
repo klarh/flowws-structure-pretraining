@@ -58,7 +58,7 @@ class FrameClassificationTask(flowws.Stage):
         rng = np.random.default_rng(self.arguments['seed'])
         rng.shuffle(shuf)
 
-        if self.arguments['subsample']:
+        if 'subsample' in self.arguments:
             filt = rng.uniform(size=len(shuf))
             filt = filt < self.arguments['subsample']
             shuf = shuf[filt]
