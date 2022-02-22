@@ -93,6 +93,8 @@ class EmbeddingPlotter(flowws.Stage):
         if any(len(v) > 1 for v in file_frames.values()):
             # use special file-frame colormap
             colors = []
+            ticks = []
+            labels = []
             file_starts = dict(
                 zip(
                     sorted(file_frames),
@@ -112,6 +114,9 @@ class EmbeddingPlotter(flowws.Stage):
             for d in remap_inverse_dicts:
                 key = get_key(d)
                 index = file_frames[key].index(get_index(d))
+                if index == len(file_frames[key])//2:
+                    ticks.append(len(colors))
+                    labels.append(dict(sorted(d.items())))
                 colors.append(file_colors[key][index])
             cmap = matplotlib.colors.ListedColormap(colors)
         elif len(remap) > self.arguments['progressive_threshold']:
@@ -119,19 +124,22 @@ class EmbeddingPlotter(flowws.Stage):
                 'custom_cubehelix',
                 plato.cmap.cubehelix(np.linspace(0.2, 0.8, len(remap), endpoint=True)),
             )
+            ticks = labels = []
         else:
             cmap = matplotlib.colors.ListedColormap(
                 plato.cmap.cubeellipse_intensity(
                     np.linspace(0, 2 * np.pi, len(remap), endpoint=False)
                 )
             )
-        return cmap
+            ticks = np.linspace(0, len(remap), len(remap), endpoint=False)
+            labels = [dict(sorted(v)) for v in remap.inverse]
+        return cmap, ticks, labels
 
     def draw_matplotlib(self, fig):
         ax = fig.add_subplot()
         remap = self.remap
 
-        cmap = self.get_colormap(remap)
+        cmap, ticks, ticklabels = self.get_colormap(remap)
         points = ax.scatter(
             self.x[:, self.arguments['component_x']],
             self.x[:, self.arguments['component_y']],
@@ -141,11 +149,6 @@ class EmbeddingPlotter(flowws.Stage):
             vmin=-0.5,
             vmax=len(self.remap) - 0.5,
         )
-        if len(remap) > self.arguments['progressive_threshold']:
-            cbar = fig.colorbar(points)
-        else:
-            cbar = fig.colorbar(
-                points, ticks=np.linspace(0, len(remap), len(remap), endpoint=False)
-            )
-            cbar.ax.set_yticklabels(list(map(dict, remap.inverse)))
+        cbar = fig.colorbar(points, ticks=ticks)
+        cbar.ax.set_yticklabels(ticklabels)
         cbar.solids.set(alpha=1)
