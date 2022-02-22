@@ -61,10 +61,8 @@ class LoadModel(flowws.Stage):
 
                 if stage['type'] == 'FrameClassificationTask':
                     self.scope['num_classes'] = len(weights[-1])
-                if stage['type'].endswith('Task'):
-                    stage['arguments']['subsample'] = self.arguments.get(
-                        'subsample', None
-                    )
+                if stage['type'].endswith('Task') and 'subsample' in self.arguments:
+                    stage['arguments']['subsample'] = self.arguments['subsample']
 
                 stages.append(stage)
                 print(stage['type'])
