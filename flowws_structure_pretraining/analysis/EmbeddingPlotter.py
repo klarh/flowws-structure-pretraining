@@ -114,7 +114,7 @@ class EmbeddingPlotter(flowws.Stage):
             for d in remap_inverse_dicts:
                 key = get_key(d)
                 index = file_frames[key].index(get_index(d))
-                if index == len(file_frames[key])//2:
+                if index == len(file_frames[key]) // 2:
                     ticks.append(len(colors))
                     labels.append(dict(sorted(d.items())))
                 colors.append(file_colors[key][index])
