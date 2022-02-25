@@ -37,7 +37,7 @@ class LoadModel(flowws.Stage):
     ]
 
     def run(self, scope, storage):
-        assert 'filename' in self.arguments
+        assert 'filename' in self.arguments or 'model_filename' in scope
         self.scope = scope
         self.storage = storage
         scope.update(self.child_scope)
@@ -49,7 +49,10 @@ class LoadModel(flowws.Stage):
 
     @functools.cached_property
     def child_scope(self):
-        with keras_gtar.Trajectory(self.arguments['filename'], 'r') as traj:
+        filename = self.arguments.get(
+            'filename', self.scope.get('model_filename', None)
+        )
+        with keras_gtar.Trajectory(filename, 'r') as traj:
             weights = traj.get_weights()
             workflow = json.loads(traj.handle.readStr('workflow.json'))
             stages = []
@@ -76,6 +79,7 @@ class LoadModel(flowws.Stage):
 
             self.loaded_visuals = self.get_visuals(traj.handle)
 
+        self.scope['model_filename'] = filename
         return child_scope
 
     def get_visuals(self, handle):
