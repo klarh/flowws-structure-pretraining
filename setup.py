@@ -46,6 +46,7 @@ for name in module_names:
 subpkg = 'analysis'
 module_names = [
     'AutoencoderVisualizer',
+    'EmbeddingDistance',
     'EmbeddingPlotter',
     'EvaluateEmbedding',
     'PCAEmbedding',
