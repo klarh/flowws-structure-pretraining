@@ -32,6 +32,13 @@ class FileLoader(flowws.Stage):
             int,
             help='Number of frames to skip while traversing trajectory',
         ),
+        Arg(
+            'clear',
+            '-c',
+            bool,
+            False,
+            help='If True, clear the list of loaded files first',
+        ),
     ]
 
     Frame = collections.namedtuple('Frame', ['positions', 'box', 'types', 'context'])
@@ -44,6 +51,9 @@ class FileLoader(flowws.Stage):
         )
         all_frames = scope.setdefault('loaded_frames', [])
         max_types = scope.get('max_types', 0)
+
+        if self.arguments['clear']:
+            all_frames.clear()
 
         for fname in self.arguments.get('filenames', []):
             context = dict(source='garnett', fname=fname)
