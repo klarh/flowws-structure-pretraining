@@ -34,6 +34,13 @@ class LoadModel(flowws.Stage):
             float,
             help='Override the subsampling operation of task modules loaded here',
         ),
+        Arg(
+            'disable_shuffle',
+            None,
+            bool,
+            False,
+            help='Disable shuffling of data if True',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -72,6 +79,12 @@ class LoadModel(flowws.Stage):
             workflow['stages'] = stages
             workflow['scope'] = self.scope
             child_workflow = flowws.Workflow.from_JSON(workflow)
+            for stage in child_workflow.stages:
+                if (
+                    'shuffle' in stage.arg_specifications
+                    and self.arguments['disable_shuffle']
+                ):
+                    stage.arguments['shuffle'] = False
             child_workflow.storage = self.storage
             child_scope = child_workflow.run()
             child_scope.pop('workflow')

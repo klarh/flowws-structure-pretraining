@@ -18,6 +18,7 @@ class NearestBondTask(flowws.Stage):
         Arg('batch_size', '-b', int, 32, help='Batch size to use'),
         Arg('loss', '-l', str, 'mse', help='Loss to use when training'),
         Arg('subsample', None, float, help='Take only the given fraction of data'),
+        Arg('shuffle', None, bool, True, help='If True, shuffle data'),
     ]
 
     def run(self, scope, storage):
@@ -65,7 +66,8 @@ class NearestBondTask(flowws.Stage):
 
         shuf = np.arange(len(rs))
         rng = np.random.default_rng(self.arguments['seed'])
-        rng.shuffle(shuf)
+        if self.arguments['shuffle']:
+            rng.shuffle(shuf)
 
         if 'subsample' in self.arguments:
             filt = rng.uniform(size=len(shuf))
