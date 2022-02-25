@@ -58,10 +58,9 @@ class FileLoader(flowws.Stage):
         for fname in self.arguments.get('filenames', []):
             context = dict(source='garnett', fname=fname)
             with garnett.read(fname) as traj:
-                # assume that loading all frames and throwing away the ones
-                # we don't want is not too much of a burden
-                frames = list(enumerate(traj))[frame_slice]
-                for (i, frame) in frames:
+                indices = list(range(len(traj)))[frame_slice]
+                for i in indices:
+                    frame = traj[i]
                     context['frame'] = i
                     types = (
                         frame.typeid
