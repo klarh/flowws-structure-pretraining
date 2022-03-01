@@ -114,7 +114,6 @@ class StaticEmbedding(keras.layers.Embedding):
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class GalaBottleneckAutoencoder(flowws.Stage):
     """Reproduce point clouds after a bottleneck layer"""
 

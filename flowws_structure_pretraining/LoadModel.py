@@ -22,7 +22,6 @@ class ArrayVisual:
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class LoadModel(flowws.Stage):
     """Load saved model and metadata"""
 

@@ -6,7 +6,6 @@ import numpy as np
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class ShiftIdentificationTask(flowws.Stage):
     """Shift input point clouds in 3D and predict the direction of the shift"""
 

@@ -20,7 +20,6 @@ NORMALIZATION_LAYER_DOC = ' (any of {})'.format(
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class GalaVectorAutoencoder(flowws.Stage):
     """Reproduce input point clouds"""
 

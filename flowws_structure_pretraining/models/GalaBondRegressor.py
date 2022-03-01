@@ -20,7 +20,6 @@ NORMALIZATION_LAYER_DOC = ' (any of {})'.format(
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class GalaBondRegressor(flowws.Stage):
     """Regress one bond for a given environment using geometric algebra attention"""
 

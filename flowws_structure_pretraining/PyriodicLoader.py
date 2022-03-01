@@ -7,7 +7,6 @@ import pyriodic
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class PyriodicLoader(flowws.Stage):
     """Load frames from the pyriodic database"""
 

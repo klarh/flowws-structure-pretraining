@@ -6,7 +6,6 @@ import numpy as np
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class EvaluateEmbedding(flowws.Stage):
     """Evaluate the embedding model on all input data"""
 

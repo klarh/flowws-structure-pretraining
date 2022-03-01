@@ -6,7 +6,6 @@ import numpy as np
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class AutoencoderTask(flowws.Stage):
     """Generate training data to reproduce input point clouds"""
 

@@ -5,7 +5,6 @@ import numpy as np
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class VoronoiNeighbors(flowws.Stage):
     """Calculate neighbors using a Voronoi tessellation"""
 

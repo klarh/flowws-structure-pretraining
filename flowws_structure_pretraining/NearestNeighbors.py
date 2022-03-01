@@ -4,7 +4,6 @@ import freud
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class NearestNeighbors(flowws.Stage):
     """Calculate neighbors using a distance criterion"""
 

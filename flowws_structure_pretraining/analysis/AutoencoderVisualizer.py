@@ -7,7 +7,6 @@ from plato import draw
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class AutoencoderVisualizer(flowws.Stage):
     """Visualize predictions for an autoencoder task"""
 

@@ -10,7 +10,6 @@ from ..internal import Remap
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class EmbeddingPlotter(flowws.Stage):
     """Use PCA to project the embedding"""
 

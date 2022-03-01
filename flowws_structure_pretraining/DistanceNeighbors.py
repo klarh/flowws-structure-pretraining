@@ -7,7 +7,6 @@ import numpy as np
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class DistanceNeighbors(flowws.Stage):
     """Calculate neighbors using a distance criterion"""
 

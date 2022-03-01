@@ -20,7 +20,6 @@ NORMALIZATION_LAYER_DOC = ' (any of {})'.format(
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class GalaBondClassifier(flowws.Stage):
     """Classify bonds using geometric algebra attention"""
 

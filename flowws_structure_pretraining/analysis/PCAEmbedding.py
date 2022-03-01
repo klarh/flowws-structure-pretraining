@@ -5,7 +5,6 @@ from sklearn.decomposition import PCA
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class PCAEmbedding(flowws.Stage):
     """Use PCA to project the embedding"""
 

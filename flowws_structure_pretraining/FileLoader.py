@@ -7,7 +7,6 @@ import numpy as np
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class FileLoader(flowws.Stage):
     """Load trajectory files"""
 

@@ -6,7 +6,6 @@ import numpy as np
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class DenoisingTask(flowws.Stage):
     """Generate training data to reproduce noisy versions of input point clouds"""
 

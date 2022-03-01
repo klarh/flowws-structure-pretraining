@@ -6,7 +6,6 @@ import numpy as np
 
 
 @flowws.add_stage_arguments
-@flowws.register_module
 class NearestBondTask(flowws.Stage):
     """Generate training data to predict the nearest neighbor vector from all other neighbors"""
 
