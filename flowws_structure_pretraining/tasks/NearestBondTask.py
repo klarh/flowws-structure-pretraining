@@ -35,9 +35,18 @@ class NearestBondTask(flowws.Stage):
         else:
             pad_size = max(np.max(frame.nlist.neighbor_counts) for frame in frames)
 
+        rng = np.random.default_rng(self.arguments['seed'])
+
         rs, ts, ws, ys, ctxs = [], [], [], [], []
         for frame in frames:
             samp = np.arange(len(frame.positions))
+            if 'subsample' in self.arguments:
+                filt = rng.uniform(size=len(samp))
+                filt = filt < self.arguments['subsample']
+                samp = samp[filt]
+                if not len(samp):
+                    continue
+
             (rijs, tijs, wijs) = index_frame(frame, samp, pad_size, 2 * max_types)
 
             rmags = np.linalg.norm(rijs, axis=-1)
@@ -64,14 +73,8 @@ class NearestBondTask(flowws.Stage):
         ys /= x_scale
 
         shuf = np.arange(len(rs))
-        rng = np.random.default_rng(self.arguments['seed'])
         if self.arguments['shuffle']:
             rng.shuffle(shuf)
-
-        if 'subsample' in self.arguments:
-            filt = rng.uniform(size=len(shuf))
-            filt = filt < self.arguments['subsample']
-            shuf = shuf[filt]
 
         rs = rs[shuf]
         ts = ts[shuf]
