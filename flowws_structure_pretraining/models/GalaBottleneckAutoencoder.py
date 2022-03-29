@@ -271,6 +271,7 @@ class GalaBottleneckAutoencoder(flowws.Stage):
         invar_mode = self.arguments['invar_mode']
         covar_mode = self.arguments['covar_mode']
         n_ref = self.arguments['num_reference_vectors']
+        DropoutLayer = scope.get('dropout_class', keras.layers.Dropout)
 
         normalization_getter = lambda key: (
             NORMALIZATION_LAYERS[self.arguments.get(key + '_normalization', None)](rank)
@@ -308,7 +309,7 @@ class GalaBottleneckAutoencoder(flowws.Stage):
 
             layers.append(keras.layers.Activation(activation))
             if dropout:
-                layers.append(keras.layers.Dropout(dropout))
+                layers.append(DropoutLayer(dropout))
 
             layers.append(keras.layers.Dense(1))
             return keras.models.Sequential(layers)
@@ -324,7 +325,7 @@ class GalaBottleneckAutoencoder(flowws.Stage):
 
             layers.append(keras.layers.Activation(activation))
             if dropout:
-                layers.append(keras.layers.Dropout(dropout))
+                layers.append(DropoutLayer(dropout))
 
             layers.append(keras.layers.Dense(dim))
             return keras.models.Sequential(layers)

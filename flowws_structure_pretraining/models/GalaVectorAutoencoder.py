@@ -159,6 +159,7 @@ class GalaVectorAutoencoder(flowws.Stage):
         distance_norm = self.arguments.get('normalize_distances', None)
         invar_mode = self.arguments['invar_mode']
         covar_mode = self.arguments['covar_mode']
+        DropoutLayer = scope.get('dropout_class', keras.layers.Dropout)
 
         if self.arguments['use_multivectors']:
             Attention = gala.MultivectorAttention
@@ -205,7 +206,7 @@ class GalaVectorAutoencoder(flowws.Stage):
 
             layers.append(keras.layers.Activation(activation))
             if dropout:
-                layers.append(keras.layers.Dropout(dropout))
+                layers.append(DropoutLayer(dropout))
 
             layers.append(keras.layers.Dense(1))
             return keras.models.Sequential(layers)
@@ -221,7 +222,7 @@ class GalaVectorAutoencoder(flowws.Stage):
 
             layers.append(keras.layers.Activation(activation))
             if dropout:
-                layers.append(keras.layers.Dropout(dropout))
+                layers.append(DropoutLayer(dropout))
 
             layers.append(keras.layers.Dense(dim))
             return keras.models.Sequential(layers)

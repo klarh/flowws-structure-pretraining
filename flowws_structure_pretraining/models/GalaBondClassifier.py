@@ -153,6 +153,7 @@ class GalaBondClassifier(flowws.Stage):
         invar_mode = self.arguments['invar_mode']
         covar_mode = self.arguments['covar_mode']
         num_classes = scope.get('num_classes', 2)
+        DropoutLayer = scope.get('dropout_class', keras.layers.Dropout)
 
         normalization_getter = lambda key: (
             NORMALIZATION_LAYERS[self.arguments.get(key + '_normalization', None)](rank)
@@ -184,7 +185,7 @@ class GalaBondClassifier(flowws.Stage):
 
             layers.append(keras.layers.Activation(activation))
             if dropout:
-                layers.append(keras.layers.Dropout(dropout))
+                layers.append(DropoutLayer(dropout))
 
             layers.append(keras.layers.Dense(1))
             return keras.models.Sequential(layers)
@@ -200,7 +201,7 @@ class GalaBondClassifier(flowws.Stage):
 
             layers.append(keras.layers.Activation(activation))
             if dropout:
-                layers.append(keras.layers.Dropout(dropout))
+                layers.append(DropoutLayer(dropout))
 
             layers.append(keras.layers.Dense(dim))
             return keras.models.Sequential(layers)
