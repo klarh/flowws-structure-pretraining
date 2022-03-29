@@ -118,6 +118,10 @@ class EmbeddingPlotter(flowws.Stage):
                     labels.append(dict(sorted(d.items())))
                 colors.append(file_colors[key][index])
             cmap = matplotlib.colors.ListedColormap(colors)
+
+            if len(ticks) > self.arguments['progressive_threshold']:
+                ticks = labels = []
+
         elif len(remap) > self.arguments['progressive_threshold']:
             cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
                 'custom_cubehelix',
