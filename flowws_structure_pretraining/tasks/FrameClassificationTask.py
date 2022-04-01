@@ -17,6 +17,13 @@ class FrameClassificationTask(flowws.Stage):
         Arg('seed', '-s', int, 13, help='RNG seed for data generation'),
         Arg('subsample', None, float, help='Take only the given fraction of data'),
         Arg('shuffle', None, bool, True, help='If True, shuffle data'),
+        Arg(
+            'multilabel',
+            '-m',
+            bool,
+            False,
+            help='If True, use binary crossentropy instead of categorical',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -77,11 +84,18 @@ class FrameClassificationTask(flowws.Stage):
         x = [rs, ts, ws] if scope.get('use_bond_weights', False) else [rs, ts]
         y = ys
 
+        loss = 'sparse_categorical_crossentropy'
+        if self.arguments['multilabel']:
+            onehot = np.eye(len(remap))
+            y = onehot[y[..., 0]]
+            loss = 'binary_crossentropy'
+
         scope['x_train'] = x
         scope['y_train'] = y
         scope['x_scale'] = x_scale
         scope['x_contexts'] = ctxs
-        scope['loss'] = 'sparse_categorical_crossentropy'
+        scope['loss'] = loss
         scope['label_remap'] = remap
         scope.setdefault('num_classes', len(remap))
         scope.setdefault('metrics', []).append('accuracy')
+        scope['multilabel'] = self.arguments['multilabel']

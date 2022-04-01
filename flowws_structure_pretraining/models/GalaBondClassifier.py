@@ -135,6 +135,12 @@ class GalaBondClassifier(flowws.Stage):
             int,
             help='Dimension to use for pre-classification projection embedding',
         ),
+        Arg(
+            'l1_activity_regularization',
+            None,
+            float,
+            help='L1 activity regularization of outputs',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -282,7 +288,17 @@ class GalaBondClassifier(flowws.Stage):
             embedding = last
 
         last = keras.layers.Dense(num_classes)(last)
-        last = keras.layers.Activation('softmax')(last)
+        if scope.get('multilabel', False):
+            # sigmoid + binary crossentropy
+            last = keras.layers.Activation('sigmoid')(last)
+        else:
+            # softmax + categorical crossentropy
+            last = keras.layers.Activation('softmax')(last)
+
+        if 'l1_activity_regularization' in self.arguments:
+            last = keras.layers.ActivityRegularization(
+                l1=self.arguments['l1_activity_regularization']
+            )(last)
 
         scope['input_symbol'] = inputs
         scope['output'] = last

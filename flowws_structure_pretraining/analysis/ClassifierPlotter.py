@@ -15,9 +15,18 @@ class ClassifierPlotter(flowws.Stage):
 
     ARGS = [
         Arg('batch_size', '-b', int, 32, help='Batch size of calculations'),
+        Arg(
+            'aggregate_probabilities',
+            None,
+            bool,
+            False,
+            help='If True, force aggregation of classes by probability',
+        ),
     ]
 
     def run(self, scope, storage):
+        self.use_probabilities = self.arguments['aggregate_probabilities']
+        self.use_probabilities |= scope.get('multilabel', False)
         self.scope = scope
         scope.update(self.value_dict)
 
@@ -45,12 +54,19 @@ class ClassifierPlotter(flowws.Stage):
         self.classes = classes[sortidx]
         self.contexts = contexts[sortidx]
 
-        indices = self.classes + self.contexts * self.num_classes
-        self.histogram = np.bincount(
-            indices, minlength=(np.max(self.contexts) + 1) * self.num_classes
-        )
-        # (context, class)
-        self.histogram = self.histogram.reshape((-1, self.num_classes))
+        if self.use_probabilities:
+            hist = np.zeros((np.max(self.contexts) + 1, self.num_classes))
+            for (i, bins) in zip(self.contexts, self.classes):
+                hist[i] += bins
+            normalization = np.bincount(self.contexts)
+            self.histogram = hist / normalization[:, None]
+        else:
+            indices = self.classes + self.contexts * self.num_classes
+            self.histogram = np.bincount(
+                indices, minlength=(np.max(self.contexts) + 1) * self.num_classes
+            )
+            # (context, class)
+            self.histogram = self.histogram.reshape((-1, self.num_classes))
         scope['class_histograms'] = self.histogram
 
         scope.setdefault('visuals', []).append(self)
@@ -70,7 +86,7 @@ class ClassifierPlotter(flowws.Stage):
         ctxs = []
         for (x, y, ctx) in scope['data_generator']:
             probas = model.predict_on_batch(x)
-            pred = np.argmax(probas, axis=-1)
+            pred = probas if self.use_probabilities else np.argmax(probas, axis=-1)
             filt = np.any(x[0] != 0, axis=-1)
             neighbor_count = np.sum(filt, axis=-1)
             xs.append(pred[filt])
@@ -96,7 +112,7 @@ class ClassifierPlotter(flowws.Stage):
             batch = slice(i_start, i_start + self.arguments['batch_size'])
             x = rs[batch], ts[batch]
             probas = model.predict_on_batch(x)
-            pred = np.argmax(probas, axis=-1)
+            pred = probas if self.use_probabilities else np.argmax(probas, axis=-1)
             filt = np.any(x[0] != 0, axis=-1)
             neighbor_count = np.sum(filt, axis=-1)
             xs.append(pred[filt])
