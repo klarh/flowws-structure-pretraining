@@ -13,6 +13,7 @@ class ArrayVisual:
         self.values = values
         self.ylabel = ylabel
         self.xlabel = xlabel
+        self.visual_name = 'plot.{}'.format(ylabel)
 
     def draw_matplotlib(self, fig):
         ax = fig.add_subplot()
@@ -103,6 +104,9 @@ class LoadModel(flowws.Stage):
         ]
         for rec in continuous_records:
             frames = handle.queryFrames(rec)
-            value = np.concatenate([handle.getRecord(rec, f) for f in frames])
-            result.append(ArrayVisual(value, rec.getName()))
+            try:
+                value = np.concatenate([handle.getRecord(rec, f) for f in frames])
+                result.append(ArrayVisual(value, rec.getName()))
+            except ValueError: # can't concatenate, probably not a numeric-type array
+                pass
         return result
