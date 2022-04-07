@@ -93,6 +93,7 @@ setup(name='flowws-structure-pretraining',
               'annoy',
               'plato-draw',
               'scikit-learn',
+              'umap-learn',
           ],
       },
       install_requires=[
