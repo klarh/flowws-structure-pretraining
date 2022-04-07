@@ -51,6 +51,7 @@ module_names = [
     'EmbeddingPlotter',
     'EvaluateEmbedding',
     'PCAEmbedding',
+    'RegressorPlotter',
     'UMAPEmbedding',
 ]
 add_subpkg(subpkg, module_names)
@@ -60,6 +61,7 @@ module_names = [
     'GalaBondClassifier',
     'GalaBondRegressor',
     'GalaBottleneckAutoencoder',
+    'GalaScalarRegressor',
     'GalaVectorAutoencoder',
 ]
 add_subpkg(subpkg, module_names)
@@ -69,6 +71,7 @@ module_names = [
     'AutoencoderTask',
     'DenoisingTask',
     'FrameClassificationTask',
+    'FrameRegressionTask',
     'NearestBondTask',
     'NoisyBondTask',
     'ShiftIdentificationTask',
