@@ -272,7 +272,7 @@ class GalaBondClassifier(flowws.Stage):
         (last, ivs, att) = Attention(
             make_scorefun(),
             make_valuefun(n_dim),
-            False,
+            scope.get('per_cloud', False),
             name='final_attention',
             rank=rank,
             join_fun=join_fun,

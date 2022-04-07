@@ -24,6 +24,19 @@ class FrameClassificationTask(flowws.Stage):
             False,
             help='If True, use binary crossentropy instead of categorical',
         ),
+        Arg(
+            'multilabel_class_mode',
+            None,
+            str,
+            help='If given, set the class probability mode for multilabel classification',
+        ),
+        Arg(
+            'per_cloud',
+            '-p',
+            bool,
+            False,
+            help='If True, classify clouds rather than individual bonds',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -81,12 +94,24 @@ class FrameClassificationTask(flowws.Stage):
         ys = ys[shuf]
         ctxs = np.array(ctxs, dtype=object)[shuf]
 
+        if self.arguments['per_cloud']:
+            ys = ys[..., 0, :].copy()
+
         x = [rs, ts, ws] if scope.get('use_bond_weights', False) else [rs, ts]
         y = ys
 
         loss = 'sparse_categorical_crossentropy'
-        if self.arguments['multilabel']:
-            onehot = np.eye(len(remap))
+        if self.arguments.get('multilabel', None):
+            mode = self.arguments.get('multilabel_class_mode', None)
+            if mode is None:
+                onehot = np.eye(len(remap))
+            elif mode == 'linear':
+                dist = np.linspace(0, 1, len(remap), endpoint=False)
+                dist = 1 - np.abs(dist[None, :] - dist[:, None])
+                dist /= np.sum(dist, axis=-1, keepdims=True)
+                onehot = dist
+            else:
+                raise NotImplementedError(mode)
             y = onehot[y[..., 0]]
             loss = 'binary_crossentropy'
 
@@ -98,4 +123,5 @@ class FrameClassificationTask(flowws.Stage):
         scope['label_remap'] = remap
         scope.setdefault('num_classes', len(remap))
         scope.setdefault('metrics', []).append('accuracy')
-        scope['multilabel'] = self.arguments['multilabel']
+        scope['multilabel'] = self.arguments.get('multilabel', None)
+        scope['per_cloud'] = self.arguments['per_cloud']

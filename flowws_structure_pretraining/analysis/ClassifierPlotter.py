@@ -46,7 +46,8 @@ class ClassifierPlotter(flowws.Stage):
         for v in sorted(unique_contexts, key=context_sort):
             remap(v)
         contexts = np.array([remap(frozenset(d.items())) for d in classifier_contexts])
-        contexts = np.repeat(contexts, scope['neighbor_counts'])
+        if not scope.get('per_cloud', False):
+            contexts = np.repeat(contexts, scope['neighbor_counts'])
 
         classes = scope['classes']
         sortidx = np.argsort(contexts)
@@ -84,22 +85,26 @@ class ClassifierPlotter(flowws.Stage):
         xs = []
         counts = []
         ctxs = []
+        neighbor_count = 1
         for (x, y, ctx) in scope['data_generator']:
             probas = model.predict_on_batch(x)
             pred = probas if self.use_probabilities else np.argmax(probas, axis=-1)
-            filt = np.any(x[0] != 0, axis=-1)
-            neighbor_count = np.sum(filt, axis=-1)
-            xs.append(pred[filt])
+            if not scope.get('per_cloud', False):
+                filt = np.any(x[0] != 0, axis=-1)
+                neighbor_count = np.sum(filt, axis=-1)
+                pred = pred[filt]
+            xs.append(pred)
             counts.append(neighbor_count)
             ctxs.extend(ctx)
 
         self.num_classes = probas.shape[-1]
         result['classes'] = np.concatenate(xs, axis=0)
-        result['neighbor_counts'] = np.concatenate(counts)
         result['classifier_contexts'] = ctxs
-        result['neighbor_segments'] = np.cumsum(
-            np.insert(result['neighbor_counts'], 0, 0)
-        )[:-1]
+        if not scope.get('per_cloud', False):
+            result['neighbor_counts'] = np.concatenate(counts)
+            result['neighbor_segments'] = np.cumsum(
+                np.insert(result['neighbor_counts'], 0, 0)
+            )[:-1]
         return result
 
     def evaluate(self, model, scope):
@@ -107,24 +112,28 @@ class ClassifierPlotter(flowws.Stage):
         xs = []
         counts = []
         preds = []
+        neighbor_count = 1
         (rs, ts) = scope['x_train']
         for i_start in range(0, len(rs), self.arguments['batch_size']):
             batch = slice(i_start, i_start + self.arguments['batch_size'])
             x = rs[batch], ts[batch]
             probas = model.predict_on_batch(x)
             pred = probas if self.use_probabilities else np.argmax(probas, axis=-1)
-            filt = np.any(x[0] != 0, axis=-1)
-            neighbor_count = np.sum(filt, axis=-1)
-            xs.append(pred[filt])
+            if not scope.get('per_cloud', False):
+                filt = np.any(x[0] != 0, axis=-1)
+                neighbor_count = np.sum(filt, axis=-1)
+                pred = pred[filt]
+            xs.append(pred)
             counts.append(neighbor_count)
 
         self.num_classes = probas.shape[-1]
         result['classes'] = np.concatenate(xs, axis=0)
-        result['neighbor_counts'] = np.concatenate(counts)
         result['classifier_contexts'] = scope['x_contexts']
-        result['neighbor_segments'] = np.cumsum(
-            np.insert(result['neighbor_counts'], 0, 0)
-        )[:-1]
+        if not scope.get('per_cloud', False):
+            result['neighbor_counts'] = np.concatenate(counts)
+            result['neighbor_segments'] = np.cumsum(
+                np.insert(result['neighbor_counts'], 0, 0)
+            )[:-1]
         return result
 
     def draw_matplotlib(self, fig):
