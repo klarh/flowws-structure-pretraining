@@ -24,7 +24,9 @@ class EvaluateEmbedding(flowws.Stage):
         self.scope = scope
         scope.update(self.value_dict)
 
-        if self.arguments['average_bonds']:
+        if scope.get('per_cloud', False):
+            pass
+        elif self.arguments['average_bonds']:
             x = scope['embedding']
             s = scope['neighbor_segments']
             N = np.clip(scope['neighbor_counts'][:, None], 1, 1e8)
@@ -47,32 +49,38 @@ class EvaluateEmbedding(flowws.Stage):
         xs = []
         counts = []
         ctxs = []
+        neighbor_count = 1
         for (x, y, ctx) in scope['data_generator']:
             pred = model.predict_on_batch(x)
             ndim = pred.shape[-1]
-            filt = np.any(x[0] != 0, axis=-1)
-            neighbor_count = np.sum(filt, axis=-1)
-            xs.append(pred[filt])
+            if not scope.get('per_cloud', False):
+                filt = np.any(x[0] != 0, axis=-1)
+                neighbor_count = np.sum(filt, axis=-1)
+                pred = pred[filt]
+            xs.append(pred)
             counts.append(neighbor_count)
             ctxs.extend(ctx)
 
         result['embedding'] = np.concatenate(xs, axis=0)
-        result['neighbor_counts'] = np.concatenate(counts)
         result['embedding_contexts'] = ctxs
-        result['neighbor_segments'] = np.cumsum(
-            np.insert(result['neighbor_counts'], 0, 0)
-        )[:-1]
+        if not scope.get('per_cloud', False):
+            result['neighbor_counts'] = np.concatenate(counts)
+            result['neighbor_segments'] = np.cumsum(
+                np.insert(result['neighbor_counts'], 0, 0)
+            )[:-1]
         return result
 
     def evaluate(self, model, scope):
         result = {}
         pred = model.predict(scope['x_train'], batch_size=self.arguments['batch_size'])
-        filt = np.any(scope['x_train'][0] != 0, axis=-1)
-        neighbor_count = np.sum(filt, axis=-1)
-        result['embedding'] = pred[filt]
-        result['neighbor_counts'] = neighbor_count
+        if not scope.get('per_cloud', False):
+            filt = np.any(scope['x_train'][0] != 0, axis=-1)
+            pred = pred[filt]
+            neighbor_count = np.sum(filt, axis=-1)
+            result['neighbor_counts'] = neighbor_count
+            result['neighbor_segments'] = np.cumsum(
+                np.insert(result['neighbor_counts'], 0, 0)
+            )[:-1]
+        result['embedding'] = pred
         result['embedding_contexts'] = scope['x_contexts']
-        result['neighbor_segments'] = np.cumsum(
-            np.insert(result['neighbor_counts'], 0, 0)
-        )[:-1]
         return result
