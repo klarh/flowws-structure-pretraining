@@ -20,6 +20,12 @@ class PyriodicLoader(flowws.Stage):
             1e-2,
             help='Magnitude of random noise to add to coordinates',
         ),
+        Arg(
+            'custom_context',
+            None,
+            [(str, eval)],
+            help='Custom (key, value) elements to set the context for all frames',
+        ),
     ]
 
     Frame = collections.namedtuple('Frame', ['positions', 'box', 'types', 'context'])
@@ -28,6 +34,12 @@ class PyriodicLoader(flowws.Stage):
         all_frames = scope.setdefault('loaded_frames', [])
         max_types = 0
 
+        custom_context = None
+        if self.arguments.get('custom_context', None):
+            custom_context = {}
+            for (key, val) in self.arguments['custom_context']:
+                custom_context[key] = val
+
         for name in self.arguments['structures']:
             for (frame,) in pyriodic.db.query(
                 'select structure from unit_cells where name = ? limit 1', (name,)
@@ -35,9 +47,13 @@ class PyriodicLoader(flowws.Stage):
                 frame = frame.rescale_shortest_distance(1.0)
                 frame = frame.replicate_upto(self.arguments['size'])
                 frame = frame.add_gaussian_noise(self.arguments['noise'])
-                context = dict(
-                    source='pyriodic', structure=name, noise=self.arguments['noise']
-                )
+
+                if custom_context is not None:
+                    context = custom_context
+                else:
+                    context = dict(
+                        source='pyriodic', structure=name, noise=self.arguments['noise']
+                    )
                 all_frames.append(
                     self.Frame(frame.positions, frame.box, frame.types, context)
                 )

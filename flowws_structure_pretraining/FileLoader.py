@@ -38,6 +38,12 @@ class FileLoader(flowws.Stage):
             False,
             help='If True, clear the list of loaded files first',
         ),
+        Arg(
+            'custom_context',
+            None,
+            [(str, eval)],
+            help='Custom (key, value) elements to set the context for all frames',
+        ),
     ]
 
     Frame = collections.namedtuple('Frame', ['positions', 'box', 'types', 'context'])
@@ -54,6 +60,12 @@ class FileLoader(flowws.Stage):
         if self.arguments['clear']:
             all_frames.clear()
 
+        custom_context = None
+        if self.arguments.get('custom_context', None):
+            custom_context = {}
+            for (key, val) in self.arguments['custom_context']:
+                custom_context[key] = val
+
         for fname in self.arguments.get('filenames', []):
             context = dict(source='garnett', fname=fname)
             with garnett.read(fname) as traj:
@@ -66,8 +78,15 @@ class FileLoader(flowws.Stage):
                         if frame.typeid is not None
                         else np.zeros(len(frame.position), dtype=np.int32)
                     )
+                    frame_context = (
+                        custom_context if custom_context is not None else context
+                    )
+
                     frame = self.Frame(
-                        frame.position, frame.box.get_box_array(), types, dict(context)
+                        frame.position,
+                        frame.box.get_box_array(),
+                        types,
+                        dict(frame_context),
                     )
                     max_types = max(max_types, int(np.max(frame.types)) + 1)
                     all_frames.append(frame)
