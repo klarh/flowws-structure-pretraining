@@ -41,8 +41,13 @@ class LoadModel(flowws.Stage):
             False,
             help='Disable shuffling of data if True',
         ),
-        Arg('only_model', '-m', bool, False,
-            help='If True, only load the model, not any other data modules'),
+        Arg(
+            'only_model',
+            '-m',
+            bool,
+            False,
+            help='If True, only load the model, not any other data modules',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -91,7 +96,7 @@ class LoadModel(flowws.Stage):
             if self.arguments['only_model']:
                 model = traj.load()
                 child_scope = dict(model=model)
-                max_types = model.inputs[1].get_shape().as_list()[-1]//2
+                max_types = model.inputs[1].get_shape().as_list()[-1] // 2
                 child_scope['max_types'] = max_types
             else:
                 child_scope = child_workflow.run()
@@ -115,6 +120,6 @@ class LoadModel(flowws.Stage):
             try:
                 value = np.concatenate([handle.getRecord(rec, f) for f in frames])
                 result.append(ArrayVisual(value, rec.getName()))
-            except ValueError: # can't concatenate, probably not a numeric-type array
+            except ValueError:  # can't concatenate, probably not a numeric-type array
                 pass
         return result

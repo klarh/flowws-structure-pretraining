@@ -46,12 +46,15 @@ for name in module_names:
 subpkg = 'analysis'
 module_names = [
     'AutoencoderVisualizer',
+    'BondDenoisingVisualizer',
     'ClassifierPlotter',
     'EmbeddingDistance',
     'EmbeddingPlotter',
     'EvaluateEmbedding',
+    'NoisyBondVisualizer',
     'PCAEmbedding',
     'RegressorPlotter',
+    'ShiftIdentificationVisualizer',
     'UMAPEmbedding',
 ]
 add_subpkg(subpkg, module_names)
