@@ -41,6 +41,8 @@ class LoadModel(flowws.Stage):
             False,
             help='Disable shuffling of data if True',
         ),
+        Arg('only_model', '-m', bool, False,
+            help='If True, only load the model, not any other data modules'),
     ]
 
     def run(self, scope, storage):
@@ -64,7 +66,7 @@ class LoadModel(flowws.Stage):
             workflow = json.loads(traj.handle.readStr('workflow.json'))
             stages = []
             for stage in workflow['stages']:
-                if stage['type'] == 'FileLoader':
+                if stage['type'] in ('FileLoader', 'PyriodicLoader'):
                     continue
                 elif stage['type'] in ('Train', 'Save'):
                     continue
@@ -86,10 +88,16 @@ class LoadModel(flowws.Stage):
                 ):
                     stage.arguments['shuffle'] = False
             child_workflow.storage = self.storage
-            child_scope = child_workflow.run()
-            child_scope.pop('workflow')
-            child_scope['model'].set_weights(weights)
-
+            if self.arguments['only_model']:
+                model = traj.load()
+                child_scope = dict(model=model)
+                max_types = model.inputs[1].get_shape().as_list()[-1]//2
+                child_scope['max_types'] = max_types
+            else:
+                child_scope = child_workflow.run()
+                child_scope.pop('workflow')
+                child_scope['model'].set_weights(weights)
+            child_scope['preprocess_workflow'] = child_workflow
             self.loaded_visuals = self.get_visuals(traj.handle)
 
         self.scope['model_filename'] = filename
