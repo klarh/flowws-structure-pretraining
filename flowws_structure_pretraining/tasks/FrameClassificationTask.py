@@ -2,8 +2,15 @@ import flowws
 from flowws import Argument as Arg
 import numpy as np
 
+import tensorflow as tf
+
 from .internal import index_frame, process_frame
 from ..internal import Remap
+
+
+def multilabel_accuracy(y_true, y_pred):
+    prod = 0.5 * (y_true * y_pred + (1 - y_true) * (1 - y_pred))
+    return tf.math.reduce_mean(prod, axis=-1)
 
 
 @flowws.add_stage_arguments
@@ -101,6 +108,7 @@ class FrameClassificationTask(flowws.Stage):
         y = ys
 
         loss = 'sparse_categorical_crossentropy'
+        num_classes = len(remap)
         if self.arguments.get('multilabel', None):
             mode = self.arguments.get('multilabel_class_mode', None)
             if mode is None:
@@ -110,10 +118,33 @@ class FrameClassificationTask(flowws.Stage):
                 dist = 1 - np.abs(dist[None, :] - dist[:, None])
                 dist /= np.sum(dist, axis=-1, keepdims=True)
                 onehot = dist
+            elif mode == 'nearby':
+                N = len(remap)
+                encodings = []
+                for bandwidth in range(1, N // 2 + 1):
+                    for offset in range(bandwidth):
+                        classes = (np.arange(N) + offset) // bandwidth
+                        class_onehots = np.eye(classes[-1] + 1)
+                        encodings.append(class_onehots[classes])
+                onehot = np.concatenate(encodings, axis=-1)
+                num_classes = onehot.shape[-1]
+            elif mode == 'bit_encoding':
+                N = len(remap)
+                encodings = []
+                cur = N
+                classes = np.arange(N)
+                while cur > 1:
+                    class_onehots = np.eye(cur + 1)
+                    encodings.append(class_onehots[classes])
+                    classes //= 2
+                    cur //= 2
+                onehot = np.concatenate(encodings, axis=-1)
+                num_classes = onehot.shape[-1]
             else:
                 raise NotImplementedError(mode)
             y = onehot[y[..., 0]]
             loss = 'binary_crossentropy'
+            scope.setdefault('metrics', []).append(multilabel_accuracy)
 
         scope['x_train'] = x
         scope['y_train'] = y
@@ -121,7 +152,7 @@ class FrameClassificationTask(flowws.Stage):
         scope['x_contexts'] = ctxs
         scope['loss'] = loss
         scope['label_remap'] = remap
-        scope.setdefault('num_classes', len(remap))
+        scope.setdefault('num_classes', num_classes)
         scope.setdefault('metrics', []).append('accuracy')
         scope['multilabel'] = self.arguments.get('multilabel', None)
         scope['per_cloud'] = self.arguments['per_cloud']
