@@ -16,9 +16,9 @@ class PyriodicLoader(flowws.Stage):
         Arg(
             'noise',
             '-n',
-            float,
-            1e-2,
-            help='Magnitude of random noise to add to coordinates',
+            [float],
+            [1e-2, 5e-2, .1],
+            help='Magnitudes of random noise to add to coordinates',
         ),
         Arg(
             'custom_context',
@@ -41,22 +41,23 @@ class PyriodicLoader(flowws.Stage):
                 custom_context[key] = val
 
         for name in self.arguments['structures']:
-            for (frame,) in pyriodic.db.query(
+            for (src_frame,) in pyriodic.db.query(
                 'select structure from unit_cells where name = ? limit 1', (name,)
             ):
-                frame = frame.rescale_shortest_distance(1.0)
-                frame = frame.replicate_upto(self.arguments['size'])
-                frame = frame.add_gaussian_noise(self.arguments['noise'])
+                for noise in self.arguments['noise']:
+                    frame = src_frame.rescale_shortest_distance(1.0)
+                    frame = frame.replicate_upto(self.arguments['size'])
+                    frame = frame.add_gaussian_noise(noise)
 
-                if custom_context is not None:
-                    context = custom_context
-                else:
-                    context = dict(
-                        source='pyriodic', structure=name, noise=self.arguments['noise']
+                    if custom_context is not None:
+                        context = custom_context
+                    else:
+                        context = dict(
+                            source='pyriodic', structure=name, noise=noise,
+                        )
+                    all_frames.append(
+                        self.Frame(frame.positions, frame.box, frame.types, context)
                     )
-                all_frames.append(
-                    self.Frame(frame.positions, frame.box, frame.types, context)
-                )
-                max_types = max(max_types, int(np.max(frame.types)) + 1)
+                    max_types = max(max_types, int(np.max(frame.types)) + 1)
 
         scope['max_types'] = max_types
