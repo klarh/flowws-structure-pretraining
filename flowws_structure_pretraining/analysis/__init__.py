@@ -8,6 +8,9 @@ BondDenoisingVisualizer = try_to_import(
 )
 ClassifierPlotter = try_to_import('.ClassifierPlotter', 'ClassifierPlotter', __name__)
 EmbeddingDistance = try_to_import('.EmbeddingDistance', 'EmbeddingDistance', __name__)
+EmbeddingDistanceTrajectory = try_to_import(
+    '.EmbeddingDistanceTrajectory', 'EmbeddingDistanceTrajectory', __name__
+)
 EmbeddingPlotter = try_to_import('.EmbeddingPlotter', 'EmbeddingPlotter', __name__)
 EvaluateEmbedding = try_to_import('.EvaluateEmbedding', 'EvaluateEmbedding', __name__)
 NoisyBondVisualizer = try_to_import(

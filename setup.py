@@ -49,6 +49,7 @@ module_names = [
     'BondDenoisingVisualizer',
     'ClassifierPlotter',
     'EmbeddingDistance',
+    'EmbeddingDistanceTrajectory',
     'EmbeddingPlotter',
     'EvaluateEmbedding',
     'NoisyBondVisualizer',
