@@ -98,7 +98,7 @@ class DenoisingTask(flowws.Stage):
 
                 y = r
                 if evaluate:
-                    x = r
+                    x = r.copy()
                 else:
                     x = r + rng.normal(scale=self.arguments['noise'], size=r.shape)
 
