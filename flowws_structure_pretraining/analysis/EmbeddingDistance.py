@@ -80,7 +80,11 @@ class EmbeddingDistance(flowws.Stage):
                 )
             )
 
-        query = AnnoyQuery(reference_embedding, metric, self.arguments['num_trees'])
+        if 'embedding_distance_query' not in scope:
+            query = AnnoyQuery(reference_embedding, metric, self.arguments['num_trees'])
+            scope['embedding_distance_query'] = query
+        else:
+            query = scope['embedding_distance_query']
 
         left = query_embedding
         if mode == 'log_nearest':
