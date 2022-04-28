@@ -44,13 +44,21 @@ class FrameClassificationTask(flowws.Stage):
             False,
             help='If True, classify clouds rather than individual bonds',
         ),
+        Arg(
+            'zero_class',
+            '-z',
+            bool,
+            True,
+            help='If False, don\'t create a null class for future unmatched contexts',
+        ),
     ]
 
     def run(self, scope, storage):
         max_types = scope['max_types']
         x_scale = self.arguments['x_scale']
         remap = Remap()
-        remap('None')
+        if self.arguments['zero_class']:
+            remap('None')
 
         nlist_generator = scope['nlist_generator']
         frames = []
