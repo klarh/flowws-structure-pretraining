@@ -56,7 +56,7 @@ class EmbeddingDistanceTrajectory(flowws.Stage):
                 loader_args['frame_start'] = frame
                 loader_args['frame_end'] = frame + 1
                 FileLoader(**loader_args).run(child_scope, storage)
-                LoadModel(disable_shuffle=True).run(child_scope, storage)
+                LoadModel(disable_shuffle=True, subsample=1).run(child_scope, storage)
                 EmbeddingDistance(**embedding_args).run(child_scope, storage)
 
                 distance = child_scope['reference_distances']
@@ -84,6 +84,8 @@ class EmbeddingDistanceTrajectory(flowws.Stage):
 
         all_distances = []
         frames = []
+        frame_means = []
+        frame_stds = []
         with gtar.GTAR(out_filename, 'a') as traj:
             for (frame, value) in traj.recordsNamed('embedding_distance'):
                 frames.append(frame)
@@ -97,6 +99,11 @@ class EmbeddingDistanceTrajectory(flowws.Stage):
                 distances = distances[count:]
                 colors = plato.cmap.cubehelix(values)
                 traj.writePath('frames/{}/color.f32.ind'.format(frame), colors)
+                frame_means.append(np.mean(values))
+                frame_stds.append(np.std(values))
+
+            traj.writePath('vars/embedding_distance_mean.f32.uni/0', frame_means)
+            traj.writePath('vars/embedding_distance_std.f32.uni/0', frame_stds)
 
             assert len(distances) == 0
 

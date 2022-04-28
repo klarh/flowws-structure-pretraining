@@ -60,7 +60,8 @@ class EmbeddingDistance(flowws.Stage):
     def run(self, scope, storage):
         mode = self.arguments['mode']
         metric = 'angular' if mode.endswith('cosine') else 'euclidean'
-        reference_embedding = scope['embedding']
+        reference_embedding = scope.get('reference_embedding', scope['embedding'])
+        scope['reference_embedding'] = reference_embedding
 
         child_arg_names = {arg.name for arg in EvaluateEmbedding.ARGS}
         child_args = {k: v for (k, v) in self.arguments.items() if k in child_arg_names}
