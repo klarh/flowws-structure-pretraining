@@ -48,6 +48,13 @@ class LoadModel(flowws.Stage):
             False,
             help='If True, only load the model, not any other data modules',
         ),
+        Arg(
+            'no_model',
+            '-n',
+            bool,
+            False,
+            help='If True, do not perform logic related to tensorflow/creating the model',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -67,7 +74,8 @@ class LoadModel(flowws.Stage):
             'filename', self.scope.get('model_filename', None)
         )
         with keras_gtar.Trajectory(filename, 'r') as traj:
-            weights = traj.get_weights()
+            if not self.arguments['no_model']:
+                weights = traj.get_weights()
             workflow = json.loads(traj.handle.readStr('workflow.json'))
             stages = []
             for stage in workflow['stages']:
@@ -75,9 +83,17 @@ class LoadModel(flowws.Stage):
                     continue
                 elif stage['type'] in ('Train', 'Save'):
                     continue
+                elif stage['type'] == 'InitializeTF':
+                    if self.arguments['no_model']:
+                        continue
+                elif any(stage['type'].endswith(bit) for bit in
+                         ('Classifier', 'Regressor', 'Autoencoder')):
+                    if self.arguments['no_model']:
+                        continue
 
                 if stage['type'] == 'FrameClassificationTask':
-                    self.scope['num_classes'] = len(weights[-1])
+                    if not self.arguments['no_model']:
+                        self.scope['num_classes'] = len(weights[-1])
                 if stage['type'].endswith('Task') and 'subsample' in self.arguments:
                     stage['arguments']['subsample'] = self.arguments['subsample']
 
@@ -101,7 +117,8 @@ class LoadModel(flowws.Stage):
             else:
                 child_scope = child_workflow.run()
                 child_scope.pop('workflow')
-                child_scope['model'].set_weights(weights)
+                if not self.arguments['no_model']:
+                    child_scope['model'].set_weights(weights)
             child_scope['preprocess_workflow'] = child_workflow
             self.loaded_visuals = self.get_visuals(traj.handle)
 

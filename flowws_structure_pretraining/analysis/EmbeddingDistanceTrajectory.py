@@ -56,7 +56,7 @@ class EmbeddingDistanceTrajectory(flowws.Stage):
                 loader_args['frame_start'] = frame
                 loader_args['frame_end'] = frame + 1
                 FileLoader(**loader_args).run(child_scope, storage)
-                LoadModel(disable_shuffle=True, subsample=1).run(child_scope, storage)
+                LoadModel(disable_shuffle=True, subsample=1, no_model=1).run(child_scope, storage)
                 EmbeddingDistance(**embedding_args).run(child_scope, storage)
 
                 distance = child_scope['reference_distances']
