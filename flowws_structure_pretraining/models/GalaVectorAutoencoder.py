@@ -12,6 +12,7 @@ NORMALIZATION_LAYERS = {
     'batch': lambda _: [keras.layers.BatchNormalization()],
     'layer': lambda _: [keras.layers.LayerNormalization()],
     'momentum': lambda _: [gala.MomentumNormalization()],
+    'momentum_layer': lambda _: [gala.MomentumLayerNormalization()],
 }
 
 NORMALIZATION_LAYER_DOC = ' (any of {})'.format(
@@ -142,6 +143,20 @@ class GalaVectorAutoencoder(flowws.Stage):
             False,
             help='If True, use vector inputs rather than geometric accumulations around the embedding layer',
         ),
+        Arg(
+            'include_normalized_products',
+            None,
+            bool,
+            False,
+            help='Also include normalized geometric product terms',
+        ),
+        Arg(
+            'normalize_equivariant_values',
+            None,
+            bool,
+            False,
+            help='If True, multiply vector values by normalized vectors at each attention step',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -199,6 +214,15 @@ class GalaVectorAutoencoder(flowws.Stage):
 
         dilation_dim = int(np.round(n_dim * dilation))
 
+        def make_layer_inputs(x, v):
+            nonnorm = (x, v, w_in) if use_weights else (x, v)
+            if self.arguments['normalize_equivariant_values']:
+                xnorm = keras.layers.LayerNormalization()(x)
+                norm = (xnorm, v, w_in) if use_weights else (xnorm, v)
+                return [nonnorm] + (rank - 1) * [norm]
+            else:
+                return rank * [nonnorm]
+
         def make_scorefun():
             layers = [keras.layers.Dense(dilation_dim)]
 
@@ -231,7 +255,7 @@ class GalaVectorAutoencoder(flowws.Stage):
             residual_in_x = last_x
             residual_in = last
             if self.arguments['use_multivectors']:
-                arg = [last_x, last, w_in] if use_weights else [last_x, last]
+                arg = make_layer_inputs(last_x, last)
                 last_x = gala.Multivector2MultivectorAttention(
                     make_scorefun(),
                     make_valuefun(n_dim),
@@ -242,9 +266,12 @@ class GalaVectorAutoencoder(flowws.Stage):
                     merge_fun=merge_fun,
                     invariant_mode=invar_mode,
                     covariant_mode=covar_mode,
+                    include_normalized_products=self.arguments[
+                        'include_normalized_products'
+                    ],
                 )(arg)
 
-            arg = [last_x, last, w_in] if use_weights else [last_x, last]
+            arg = make_layer_inputs(last_x, last)
             last = Attention(
                 make_scorefun(),
                 make_valuefun(n_dim),
@@ -254,6 +281,9 @@ class GalaVectorAutoencoder(flowws.Stage):
                 merge_fun=merge_fun,
                 invariant_mode=invar_mode,
                 covariant_mode=covar_mode,
+                include_normalized_products=self.arguments[
+                    'include_normalized_products'
+                ],
             )(arg)
 
             if block_nonlin:
@@ -283,6 +313,9 @@ class GalaVectorAutoencoder(flowws.Stage):
                 join_fun=join_fun,
                 invariant_mode=invar_mode,
                 covariant_mode=covar_mode,
+                include_normalized_products=self.arguments[
+                    'include_normalized_products'
+                ],
                 merge_fun=merge_fun,
             )([rs, vs])
 
