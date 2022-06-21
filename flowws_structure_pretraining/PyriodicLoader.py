@@ -17,7 +17,7 @@ class PyriodicLoader(flowws.Stage):
             'noise',
             '-n',
             [float],
-            [1e-2, 5e-2, .1],
+            [1e-2, 5e-2, 0.1],
             help='Magnitudes of random noise to add to coordinates',
         ),
         Arg(
@@ -53,7 +53,9 @@ class PyriodicLoader(flowws.Stage):
                         context = custom_context
                     else:
                         context = dict(
-                            source='pyriodic', structure=name, noise=noise,
+                            source='pyriodic',
+                            structure=name,
+                            noise=noise,
                         )
                     all_frames.append(
                         self.Frame(frame.positions, frame.box, frame.types, context)

@@ -86,8 +86,10 @@ class LoadModel(flowws.Stage):
                 elif stage['type'] == 'InitializeTF':
                     if self.arguments['no_model']:
                         continue
-                elif any(stage['type'].endswith(bit) for bit in
-                         ('Classifier', 'Regressor', 'Autoencoder')):
+                elif any(
+                    stage['type'].endswith(bit)
+                    for bit in ('Classifier', 'Regressor', 'Autoencoder')
+                ):
                     if self.arguments['no_model']:
                         continue
 

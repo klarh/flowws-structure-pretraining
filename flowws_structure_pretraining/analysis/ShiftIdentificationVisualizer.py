@@ -34,8 +34,7 @@ class ShiftIdentificationVisualizer(flowws.Stage, GeneratorVisualizer):
         Arg('color_min', None, float, 0.0, help='Minimum colormap value'),
         Arg('color_max', None, float, 1.0, help='Maximum colormap value'),
         Arg('contrast', None, float, 1.0, help='Contrast scale'),
-        Arg('draw_shift', None, bool, False,
-            help='Render shifts as lines'),
+        Arg('draw_shift', None, bool, False, help='Render shifts as lines'),
         Arg(
             'width',
             None,
