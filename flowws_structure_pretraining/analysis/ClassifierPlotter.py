@@ -22,6 +22,13 @@ class ClassifierPlotter(flowws.Stage):
             False,
             help='If True, force aggregation of classes by probability',
         ),
+        Arg(
+            'plot_series',
+            '-s',
+            bool,
+            False,
+            help='If True, plot series as lines rather than heatmaps/images',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -143,6 +150,9 @@ class ClassifierPlotter(flowws.Stage):
         # normalize
         img /= np.sum(img, axis=-1, keepdims=True)
 
-        imshow = ax.imshow(img.T)
-        cbar = fig.colorbar(imshow)
-        cbar.solids.set(alpha=1)
+        if self.arguments['plot_series']:
+            ax.plot(img)
+        else:
+            imshow = ax.imshow(img.T)
+            cbar = fig.colorbar(imshow)
+            cbar.solids.set(alpha=1)
