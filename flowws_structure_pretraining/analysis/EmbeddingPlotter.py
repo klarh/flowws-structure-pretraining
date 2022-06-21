@@ -26,6 +26,7 @@ class EmbeddingPlotter(flowws.Stage):
         ),
         Arg('component_x', '-x', int, 0, help='Embedding component to plot on x axis'),
         Arg('component_y', '-y', int, 1, help='Embedding component to plot on y axis'),
+        Arg('reverse', '-r', bool, False, help='If True, reverse the colormap'),
     ]
 
     def run(self, scope, storage):
@@ -88,6 +89,7 @@ class EmbeddingPlotter(flowws.Stage):
         for d in remap_inverse_dicts:
             file_frames[get_key(d)].add(get_index(d))
         file_frames = {k: list(sorted(v)) for (k, v) in file_frames.items()}
+        left, right = (0.8, 0.2) if self.arguments['reverse'] else (0.2, 0.8)
 
         if any(len(v) > 1 for v in file_frames.values()):
             # use special file-frame colormap
@@ -103,7 +105,7 @@ class EmbeddingPlotter(flowws.Stage):
             file_thetas = {
                 k: [0.5]
                 if len(v) == 1
-                else np.linspace(0.2, 0.8, len(v), endpoint=True)
+                else np.linspace(left, right, len(v), endpoint=True)
                 for (k, v) in file_frames.items()
             }
             file_colors = {
@@ -125,7 +127,9 @@ class EmbeddingPlotter(flowws.Stage):
         elif len(remap) > self.arguments['progressive_threshold']:
             cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
                 'custom_cubehelix',
-                plato.cmap.cubehelix(np.linspace(0.2, 0.8, len(remap), endpoint=True)),
+                plato.cmap.cubehelix(
+                    np.linspace(left, right, len(remap), endpoint=True)
+                ),
             )
             ticks = labels = []
         else:
