@@ -1,6 +1,5 @@
 import tempfile
 
-import annoy
 import flowws
 from flowws import Argument as Arg
 import numpy as np
@@ -18,6 +17,8 @@ def cosine_distance(a, b):
 
 class AnnoyQuery:
     def __init__(self, refs, metric='euclidean', num_trees=10):
+        import annoy
+
         self.refs = np.asarray(refs)
         self.D = self.refs.shape[-1]
         self.metric = metric
@@ -46,6 +47,28 @@ class AnnoyQuery:
         return self.refs[indices]
 
 
+class PyNNDescentQuery:
+    def __init__(self, refs, metric='euclidean'):
+        import pynndescent
+
+        self.refs = np.asarray(refs)
+        self.D = self.refs.shape[-1]
+        self.metric = metric
+
+        self.index = pynndescent.NNDescent(self.refs, self.metric)
+
+    def get_indices(self, vecs, N=None):
+        vecs = np.asarray(vecs)
+        N = N or vecs.shape[-1]
+        (indices, distances) = self.index.query(vecs)
+        return indices
+
+    def get_coords(self, vecs, N=None):
+        vecs = np.asarray(vecs)
+        indices = self.get_indices(vecs, N)
+        return self.refs[indices]
+
+
 @flowws.add_stage_arguments
 class EmbeddingDistance(flowws.Stage):
     """Compute statistics on distances in embedding space"""
@@ -55,11 +78,15 @@ class EmbeddingDistance(flowws.Stage):
         Arg('num_trees', None, int, 10, help='Number of annoy trees to generate'),
         Arg('seed', '-s', int, 13, help='RNG seed, if needed'),
         Arg('summarize', None, bool, True, help='Print statistics of number of points'),
+        Arg('use_annoy', None, bool, False, help='Use annoy instead of pynndescent'),
     ]
 
     def run(self, scope, storage):
         mode = self.arguments['mode']
-        metric = 'angular' if mode.endswith('cosine') else 'euclidean'
+        if self.arguments['use_annoy']:
+            metric = 'angular' if mode.endswith('cosine') else 'euclidean'
+        else:
+            metric = 'cosine' if mode.endswith('cosine') else 'euclidean'
         reference_embedding = scope.get('reference_embedding', scope['embedding'])
         scope['reference_embedding'] = reference_embedding
 
@@ -82,7 +109,12 @@ class EmbeddingDistance(flowws.Stage):
             )
 
         if 'embedding_distance_query' not in scope:
-            query = AnnoyQuery(reference_embedding, metric, self.arguments['num_trees'])
+            if self.arguments['use_annoy']:
+                query = AnnoyQuery(
+                    reference_embedding, metric, self.arguments['num_trees']
+                )
+            else:
+                query = PyNNDescentQuery(reference_embedding, metric)
             scope['embedding_distance_query'] = query
         else:
             query = scope['embedding_distance_query']

@@ -97,8 +97,8 @@ setup(name='flowws-structure-pretraining',
       extras_require={
           'pyriodic': ['pyriodic-aflow'],
           'analysis': [
-              'annoy',
               'plato-draw',
+              'pynndescent',
               'scikit-learn',
               'umap-learn',
           ],
