@@ -308,15 +308,6 @@ class GalaBottleneckAutoencoder(flowws.Stage):
             maybe_downcast_vector = lambda x: x
 
         type_dim = 2 * scope.get('max_types', 1)
-
-        x_in = keras.layers.Input((None, 3), name='rij')
-        v_in = keras.layers.Input((None, type_dim), name='tij')
-        w_in = None
-        inputs = [x_in, v_in]
-        if use_weights:
-            w_in = keras.layers.Input((None,), name='wij')
-            inputs = [x_in, v_in, w_in]
-
         dilation_dim = int(np.round(n_dim * dilation))
 
         def make_layer_inputs(x, v):
@@ -450,77 +441,94 @@ class GalaBottleneckAutoencoder(flowws.Stage):
 
             return last_x
 
-        last_x = x_in
-        if distance_norm in ('mean', 'min'):
-            last_x = NeighborDistanceNormalization(distance_norm)(last_x)
-        elif distance_norm:
-            raise NotImplementedError(distance_norm)
+        if 'encoded_base' in scope:
+            (last_x, last) = scope['encoded_base']
+            inputs = scope['input_symbol']
+        else:
+            x_in = keras.layers.Input((None, 3), name='rij')
+            v_in = keras.layers.Input((None, type_dim), name='tij')
+            w_in = None
+            inputs = [x_in, v_in]
+            if use_weights:
+                w_in = keras.layers.Input((None,), name='wij')
+                inputs = [x_in, v_in, w_in]
 
-        last_x = maybe_upcast_vector(last_x)
-        last = keras.layers.Dense(n_dim)(v_in)
-        for _ in range(num_blocks):
-            last_x, last = make_block(last_x, last)
+            last_x = x_in
+            if distance_norm in ('mean', 'min'):
+                last_x = NeighborDistanceNormalization(distance_norm)(last_x)
+            elif distance_norm == 'none':
+                pass
+            elif distance_norm:
+                raise NotImplementedError(distance_norm)
 
-        reference_last_x = stack_vector_layers(
-            AttentionVector,
-            last_x,
-            last,
-            n_ref,
-            make_scorefun,
-            make_valuefun,
-            make_valuefun,
-            join_fun,
-            merge_fun,
-            n_dim,
-            rank,
-            invar_mode,
-            covar_mode,
-            include_normalized_products=self.arguments['include_normalized_products'],
-        )
+            last_x = maybe_upcast_vector(last_x)
+            last = keras.layers.Dense(n_dim)(v_in)
+            for _ in range(num_blocks):
+                last_x, last = make_block(last_x, last)
 
-        reference_last_x = SVDLayer()(maybe_downcast_vector(reference_last_x))
-        reference_last_x = maybe_upcast_vector(reference_last_x)
-        n_ref = max(n_ref, 3)
-
-        reference_embedding = StaticEmbedding(n_ref, n_dim)(x_in)
-
-        embedding = last
-        if self.arguments['cross_attention']:
-            arg = [last_x, last, w_in] if use_weights else [last_x, last]
-            arg = [arg, [reference_last_x, reference_embedding]]
-            embedding = last = Attention(
-                make_scorefun(),
-                make_valuefun(n_dim),
-                False,
-                rank=rank,
-                join_fun=join_fun,
-                merge_fun=merge_fun,
-                invariant_mode=invar_mode,
-                covariant_mode=covar_mode,
+            reference_last_x = stack_vector_layers(
+                AttentionVector,
+                last_x,
+                last,
+                n_ref,
+                make_scorefun,
+                make_valuefun,
+                make_valuefun,
+                join_fun,
+                merge_fun,
+                n_dim,
+                rank,
+                invar_mode,
+                covar_mode,
                 include_normalized_products=self.arguments[
                     'include_normalized_products'
                 ],
-            )(arg)
-
-        if self.arguments['variational']:
-            samp = VAESampler(
-                self.arguments['vae_dim'], (-1,), self.arguments['vae_scale']
             )
-            embedding = samp.z_mean_projection(last)
-            last = samp(last)
-            if n_dim != self.arguments['vae_dim']:
-                last = keras.layers.Dense(n_dim)(last)
 
-        last_x = make_labeled_block(last)
+            reference_last_x = SVDLayer()(maybe_downcast_vector(reference_last_x))
+            reference_last_x = maybe_upcast_vector(reference_last_x)
+            n_ref = max(n_ref, 3)
+
+            reference_embedding = StaticEmbedding(n_ref, n_dim)(x_in)
+
+            embedding = last
+            if self.arguments['cross_attention']:
+                arg = [last_x, last, w_in] if use_weights else [last_x, last]
+                arg = [arg, [reference_last_x, reference_embedding]]
+                embedding = last = Attention(
+                    make_scorefun(),
+                    make_valuefun(n_dim),
+                    False,
+                    rank=rank,
+                    join_fun=join_fun,
+                    merge_fun=merge_fun,
+                    invariant_mode=invar_mode,
+                    covariant_mode=covar_mode,
+                    include_normalized_products=self.arguments[
+                        'include_normalized_products'
+                    ],
+                )(arg)
+
+            if self.arguments['variational']:
+                samp = VAESampler(
+                    self.arguments['vae_dim'], (-1,), self.arguments['vae_scale']
+                )
+                embedding = samp.z_mean_projection(last)
+                last = samp(last)
+                if n_dim != self.arguments['vae_dim']:
+                    last = keras.layers.Dense(n_dim)(last)
+
+            last_x = make_labeled_block(last)
+
+            scope['encoded_base'] = (last_x, last)
+            embedding_model = keras.models.Model(inputs, embedding)
+            scope['embedding_model'] = embedding_model
 
         for _ in range(self.arguments['num_vector_blocks']):
             last_x = make_vector_block(last_x, last)
 
         last_x = maybe_downcast_vector(last_x)
 
-        embedding_model = keras.models.Model(inputs, embedding)
-
         scope['input_symbol'] = inputs
         scope['output'] = last_x
         scope['model'] = keras.models.Model(inputs, scope['output'])
-        scope['embedding_model'] = embedding_model

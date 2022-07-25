@@ -188,15 +188,6 @@ class GalaBondClassifier(flowws.Stage):
             maybe_upcast_vector = lambda x: x
 
         type_dim = 2 * scope.get('max_types', 1)
-
-        x_in = keras.layers.Input((None, 3), name='rij')
-        v_in = keras.layers.Input((None, type_dim), name='tij')
-        w_in = None
-        inputs = [x_in, v_in]
-        if use_weights:
-            w_in = keras.layers.Input((None,), name='wij')
-            inputs = [x_in, v_in, w_in]
-
         dilation_dim = int(np.round(n_dim * dilation))
 
         def make_layer_inputs(x, v):
@@ -287,16 +278,32 @@ class GalaBondClassifier(flowws.Stage):
 
             return last_x, last
 
-        last_x = x_in
-        if distance_norm in ('mean', 'min'):
-            last_x = NeighborDistanceNormalization(distance_norm)(last_x)
-        elif distance_norm:
-            raise NotImplementedError(distance_norm)
+        if 'encoded_base' in scope:
+            (last_x, last) = scope['encoded_base']
+            inputs = scope['input_symbol']
+        else:
+            x_in = keras.layers.Input((None, 3), name='rij')
+            v_in = keras.layers.Input((None, type_dim), name='tij')
+            w_in = None
+            inputs = [x_in, v_in]
+            if use_weights:
+                w_in = keras.layers.Input((None,), name='wij')
+                inputs = [x_in, v_in, w_in]
 
-        last_x = maybe_upcast_vector(last_x)
-        last = keras.layers.Dense(n_dim)(v_in)
-        for _ in range(num_blocks):
-            last_x, last = make_block(last_x, last)
+            last_x = x_in
+            if distance_norm in ('mean', 'min'):
+                last_x = NeighborDistanceNormalization(distance_norm)(last_x)
+            elif distance_norm == 'none':
+                pass
+            elif distance_norm:
+                raise NotImplementedError(distance_norm)
+
+            last_x = maybe_upcast_vector(last_x)
+            last = keras.layers.Dense(n_dim)(v_in)
+            for _ in range(num_blocks):
+                last_x, last = make_block(last_x, last)
+
+            scope['encoded_base'] = (last_x, last)
 
         arg = make_layer_inputs(last_x, last)
         (last, ivs, att) = Attention(

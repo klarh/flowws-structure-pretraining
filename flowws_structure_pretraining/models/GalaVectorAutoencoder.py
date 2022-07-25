@@ -203,15 +203,6 @@ class GalaVectorAutoencoder(flowws.Stage):
             maybe_downcast_vector = lambda x: x
 
         type_dim = 2 * scope.get('max_types', 1)
-
-        x_in = keras.layers.Input((None, 3), name='rij')
-        v_in = keras.layers.Input((None, type_dim), name='tij')
-        w_in = None
-        inputs = [x_in, v_in]
-        if use_weights:
-            w_in = keras.layers.Input((None,), name='wij')
-            inputs = [x_in, v_in, w_in]
-
         dilation_dim = int(np.round(n_dim * dilation))
 
         def make_layer_inputs(x, v):
@@ -327,31 +318,46 @@ class GalaVectorAutoencoder(flowws.Stage):
 
             return rs
 
-        last_x = x_in
-        if distance_norm in ('mean', 'min'):
-            last_x = NeighborDistanceNormalization(distance_norm)(last_x)
-        elif distance_norm:
-            raise NotImplementedError(distance_norm)
+        if 'encoded_base' in scope:
+            (last_x, last) = scope['encoded_base']
+            inputs = scope['input_symbol']
+            saved_x_in = maybe_upcast_vector(inputs[0])
+        else:
+            x_in = keras.layers.Input((None, 3), name='rij')
+            v_in = keras.layers.Input((None, type_dim), name='tij')
+            w_in = None
+            inputs = [x_in, v_in]
+            if use_weights:
+                w_in = keras.layers.Input((None,), name='wij')
+                inputs = [x_in, v_in, w_in]
 
-        last_x = saved_x_in = maybe_upcast_vector(last_x)
-        last = keras.layers.Dense(n_dim)(v_in)
-        for _ in range(num_blocks - 1):
+            last_x = x_in
+            if distance_norm in ('mean', 'min'):
+                last_x = NeighborDistanceNormalization(distance_norm)(last_x)
+            elif distance_norm == 'none':
+                pass
+            elif distance_norm:
+                raise NotImplementedError(distance_norm)
+
+            last_x = saved_x_in = maybe_upcast_vector(last_x)
+            last = keras.layers.Dense(n_dim)(v_in)
+            for _ in range(num_blocks - 1):
+                last_x, last = make_block(last_x, last)
+
+            scope['encoded_base'] = (last_x, last)
+            if self.arguments['drop_geometric_embeddings']:
+                last_x = saved_x_in
             last_x, last = make_block(last_x, last)
 
-        if self.arguments['drop_geometric_embeddings']:
-            last_x = saved_x_in
-        last_x, last = make_block(last_x, last)
-
-        embedding = last
+            embedding = last
+            embedding_model = keras.models.Model(inputs, embedding)
+            scope['embedding_model'] = embedding_model
 
         for _ in range(self.arguments['num_vector_blocks']):
             last_x = make_vector_block(last_x, last)
 
         last_x = maybe_downcast_vector(last_x)
 
-        embedding_model = keras.models.Model(inputs, embedding)
-
         scope['input_symbol'] = inputs
         scope['output'] = last_x
         scope['model'] = keras.models.Model(inputs, scope['output'])
-        scope['embedding_model'] = embedding_model
