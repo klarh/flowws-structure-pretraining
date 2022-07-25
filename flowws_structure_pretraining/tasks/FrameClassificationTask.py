@@ -51,6 +51,30 @@ class FrameClassificationTask(flowws.Stage):
             True,
             help='If False, don\'t create a null class for future unmatched contexts',
         ),
+        Arg(
+            'entropy_term',
+            None,
+            float,
+            help='If given, use the value to add an entropy-maximizing scaling term to the loss function',
+        ),
+        Arg(
+            'maxp_term',
+            None,
+            float,
+            help='If given, use the value to add a penalty to the maximum predicted class probability',
+        ),
+        Arg(
+            'divergence_term',
+            None,
+            float,
+            help='If given, use the value to add a penalty to class probabilities in the middle of the distribution',
+        ),
+        Arg(
+            'cluster_term',
+            None,
+            float,
+            help='If given, use the value to add a loss penalty for non-close probabilities',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -153,6 +177,55 @@ class FrameClassificationTask(flowws.Stage):
             y = onehot[y[..., 0]]
             loss = 'binary_crossentropy'
             scope.setdefault('metrics', []).append(multilabel_accuracy)
+
+        if self.arguments.get('entropy_term', None):
+            entropy_scale = self.arguments['entropy_term']
+            loss_name = loss
+            base_loss = tf.keras.losses.get(loss_name)
+
+            def loss(y_true, y_pred):
+                base = base_loss(y_true, y_pred)
+                if self.arguments.get('multilabel', None):
+                    proba = y_pred / tf.math.reduce_sum(y_pred, axis=-1, keepdims=True)
+                else:
+                    proba = y_pred
+                entropy = -tf.math.reduce_sum(proba * tf.math.log(proba), axis=-1)
+                # maximize entropy -> negative sign
+                return base - entropy_scale * entropy
+
+        elif self.arguments.get('maxp_term', None):
+            maxp_scale = self.arguments['maxp_term']
+            loss_name = loss
+            base_loss = tf.keras.losses.get(loss_name)
+
+            def loss(y_true, y_pred):
+                base = base_loss(y_true, y_pred)
+                maxp = tf.math.reduce_max(y_pred, axis=-1)
+                return base + maxp_scale * maxp
+
+        elif self.arguments.get('divergence_term', None):
+            divergence_scale = self.arguments['divergence_term']
+            loss_name = loss
+            base_loss = tf.keras.losses.get(loss_name)
+
+            def loss(y_true, y_pred):
+                base = base_loss(y_true, y_pred)
+                maxval = tf.math.reduce_max(y_pred, axis=-1, keepdims=True)
+                p0 = y_pred / maxval
+                pmax = (maxval - y_pred) / maxval
+                divergence = tf.math.reduce_mean(tf.math.minimum(p0, pmax), axis=-1)
+                return base + divergence_scale * divergence
+
+        elif self.arguments.get('cluster_term', None):
+            cluster_scale = self.arguments['cluster_term']
+            loss_name = loss
+            base_loss = tf.keras.losses.get(loss_name)
+
+            def loss(y_true, y_pred):
+                base = base_loss(y_true, y_pred)
+                delta = y_pred[..., None, :] - y_pred[..., :, None]
+                cluster = tf.math.reduce_mean(tf.square(delta), axis=(-1, -2))
+                return base + cluster_scale * cluster
 
         scope['x_train'] = x
         scope['y_train'] = y
