@@ -3,6 +3,7 @@ from .internal import pad, process_frame, EnvironmentGenerator
 import flowws
 from flowws import Argument as Arg
 import numpy as np
+import rowan
 
 
 @flowws.add_stage_arguments
@@ -36,6 +37,13 @@ class DenoisingTask(flowws.Stage):
             0.3,
             help='Fraction of data to be used for validation',
         ),
+        Arg(
+            'register',
+            '-r',
+            bool,
+            False,
+            help='If True, register point clouds after adding noise',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -63,23 +71,41 @@ class DenoisingTask(flowws.Stage):
             )
 
         scope['train_generator'] = self.batch_generator(
-            env_gen, self.arguments['seed'], evaluate=False, subsample=train_sample
+            env_gen,
+            self.arguments['seed'],
+            evaluate=False,
+            subsample=train_sample,
+            register=self.arguments['register'],
         )
         scope['validation_generator'] = self.batch_generator(
-            env_gen, self.arguments['seed'], evaluate=False, subsample=val_sample
+            env_gen,
+            self.arguments['seed'],
+            evaluate=False,
+            subsample=val_sample,
+            register=self.arguments['register'],
         )
         scope['test_generator'] = self.batch_generator(
-            env_gen, self.arguments['seed'] + 2
+            env_gen, self.arguments['seed'] + 2, register=self.arguments['register']
         )
         scope['data_generator'] = self.batch_generator(
-            env_gen, 0, evaluate=True, subsample=self.arguments.get('subsample', 1)
+            env_gen,
+            0,
+            evaluate=True,
+            subsample=self.arguments.get('subsample', 1),
+            register=self.arguments['register'],
         )
         scope['x_scale'] = self.arguments['x_scale']
         scope['loss'] = self.arguments['loss']
         scope.setdefault('metrics', []).append('mae')
 
     def batch_generator(
-        self, env_gen, seed=13, round_neighbors=4, evaluate=False, subsample=None
+        self,
+        env_gen,
+        seed=13,
+        round_neighbors=4,
+        evaluate=False,
+        subsample=None,
+        register=False,
     ):
         env_gen = env_gen.sample(seed, not evaluate, subsample)
         rng = np.random.default_rng(seed + 1)
@@ -100,7 +126,13 @@ class DenoisingTask(flowws.Stage):
                 if evaluate:
                     x = r.copy()
                 else:
-                    x = r + rng.normal(scale=self.arguments['noise'], size=r.shape)
+                    noise = rng.normal(scale=self.arguments['noise'], size=r.shape)
+                    noise -= np.mean(noise, axis=0, keepdims=True)
+                    x = r + noise
+
+                    if register:
+                        (R, t) = rowan.mapping.kabsch(x, y)
+                        x = x @ R.T + t
 
                 x /= x_scale
                 y /= x_scale
