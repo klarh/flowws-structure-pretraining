@@ -325,7 +325,6 @@ class GalaBondRegressor(flowws.Stage):
         )(arg, return_invariants=True, return_attention=True)
         last_x = maybe_downcast_vector(last_x)
 
-
         scope['input_symbol'] = inputs
         scope['output'] = last_x
         scope['model'] = keras.models.Model(inputs, scope['output'])
