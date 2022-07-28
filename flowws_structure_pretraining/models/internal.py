@@ -27,3 +27,23 @@ class NeighborDistanceNormalization(keras.layers.Layer):
         result = super().get_config()
         result['mode'] = self.mode
         return result
+
+
+class NoiseInjector(keras.layers.Layer):
+    def __init__(self, magnitude, only_during_training=True, **kwargs):
+        self.magnitude = magnitude
+        self.only_during_training = only_during_training
+        super().__init__(**kwargs)
+
+    def call(self, inputs, training=False):
+        if self.only_during_training and not training:
+            return inputs
+
+        noise = tf.random.normal(tf.shape(inputs), stddev=self.magnitude)
+        return inputs + noise
+
+    def get_config(self):
+        result = super().get_config()
+        result['magnitude'] = self.magnitude
+        result['only_during_training'] = self.only_during_training
+        return result

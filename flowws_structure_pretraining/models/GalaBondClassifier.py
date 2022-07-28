@@ -1,4 +1,4 @@
-from .internal import NeighborDistanceNormalization
+from .internal import NeighborDistanceNormalization, NoiseInjector
 
 import flowws
 from flowws import Argument as Arg
@@ -156,6 +156,13 @@ class GalaBondClassifier(flowws.Stage):
             False,
             help='If True, multiply vector values by normalized vectors at each attention step',
         ),
+        Arg(
+            'inject_noise',
+            None,
+            float,
+            0,
+            help='If given, add random noise with the given magnitude to input coordinates',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -297,6 +304,9 @@ class GalaBondClassifier(flowws.Stage):
                 pass
             elif distance_norm:
                 raise NotImplementedError(distance_norm)
+
+            if self.arguments['inject_noise']:
+                last_x = NoiseInjector(self.arguments['inject_noise'])(last_x)
 
             last_x = maybe_upcast_vector(last_x)
             last = keras.layers.Dense(n_dim)(v_in)
