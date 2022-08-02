@@ -27,6 +27,7 @@ def add_subpkg(subpkg, module_names):
             'flowws_structure_pretraining.{1}.{0} = flowws_structure_pretraining.{1}.{0}:{0}'.format(name, subpkg))
 
 module_names = [
+    'ClearMetrics',
     'DistanceNeighbors',
     'FileLoader',
     'LoadModel',
