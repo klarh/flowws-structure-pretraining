@@ -85,6 +85,8 @@ class NearestBondTask(flowws.Stage):
         x = [rs, ts, ws] if scope.get('use_bond_weights', False) else [rs, ts]
         y = ys
 
+        for key in ['x_train', 'y_train', 'train_generator', 'validation_generator']:
+            scope.pop(key, None)
         scope['x_train'] = x
         scope['y_train'] = y
         scope['x_scale'] = x_scale

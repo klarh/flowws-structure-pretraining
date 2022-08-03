@@ -61,6 +61,8 @@ class NoisyBondTask(flowws.Stage):
                 val_sample[0] + np.diff(val_sample) * self.arguments['subsample']
             )
 
+        for key in ['x_train', 'y_train', 'train_generator', 'validation_generator']:
+            scope.pop(key, None)
         scope['train_generator'] = self.batch_generator(
             env_gen, self.arguments['seed'], evaluate=False, subsample=train_sample
         )

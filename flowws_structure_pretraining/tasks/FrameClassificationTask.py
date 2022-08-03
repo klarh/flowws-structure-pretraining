@@ -227,6 +227,8 @@ class FrameClassificationTask(flowws.Stage):
                 cluster = tf.math.reduce_mean(tf.square(delta), axis=(-1, -2))
                 return base + cluster_scale * cluster
 
+        for key in ['x_train', 'y_train', 'train_generator', 'validation_generator']:
+            scope.pop(key, None)
         scope['x_train'] = x
         scope['y_train'] = y
         scope['x_scale'] = x_scale
