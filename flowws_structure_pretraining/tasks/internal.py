@@ -114,6 +114,8 @@ class EnvironmentGenerator:
 
             while True:
                 frame_i = rng.choice(frame_indices, p=self.frame_probas)
+                if not len(particle_indices[frame_i]):
+                    continue
                 particle = rng.choice(particle_indices[frame_i])
                 yield self.produce(frame_i, particle)
         else:
