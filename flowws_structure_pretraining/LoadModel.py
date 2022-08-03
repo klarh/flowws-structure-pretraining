@@ -119,6 +119,7 @@ class LoadModel(flowws.Stage):
             else:
                 child_scope = child_workflow.run()
                 child_scope.pop('workflow')
+                child_scope.pop('metadata')
                 if not self.arguments['no_model']:
                     child_scope['model'].set_weights(weights)
             child_scope['preprocess_workflow'] = child_workflow
