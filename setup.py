@@ -30,6 +30,7 @@ module_names = [
     'ClearMetrics',
     'DistanceNeighbors',
     'FileLoader',
+    'LimitAccuracyCallback',
     'LoadModel',
     'NearestNeighbors',
     'NormalizeNeighborDistance',
