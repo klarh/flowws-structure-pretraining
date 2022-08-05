@@ -235,7 +235,7 @@ class FrameClassificationTask(flowws.Stage):
         scope['x_contexts'] = ctxs
         scope['loss'] = loss
         scope['label_remap'] = remap
-        scope.setdefault('num_classes', num_classes)
+        scope['num_classes'] = num_classes
         scope.setdefault('metrics', []).append('accuracy')
         scope['multilabel'] = self.arguments.get('multilabel', None)
         scope['per_cloud'] = self.arguments['per_cloud']
