@@ -163,6 +163,13 @@ class GalaBondClassifier(flowws.Stage):
             0,
             help='If given, add random noise with the given magnitude to input coordinates',
         ),
+        Arg(
+            'transfer_freeze',
+            None,
+            bool,
+            False,
+            help='If True, freeze pretrained weights for transfer learning',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -288,6 +295,11 @@ class GalaBondClassifier(flowws.Stage):
         if 'encoded_base' in scope:
             (last_x, last) = scope['encoded_base']
             inputs = scope['input_symbol']
+
+            if self.arguments['transfer_freeze']:
+                frozen_model = keras.models.Model(inputs, scope['encoded_base'])
+                frozen_model.trainable = False
+                (last_x, last) = frozen_model(inputs)
         else:
             x_in = keras.layers.Input((None, 3), name='rij')
             v_in = keras.layers.Input((None, type_dim), name='tij')
