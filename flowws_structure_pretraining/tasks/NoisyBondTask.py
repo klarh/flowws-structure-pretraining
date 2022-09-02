@@ -76,7 +76,8 @@ class NoisyBondTask(flowws.Stage):
             env_gen, 0, evaluate=True, subsample=self.arguments.get('subsample', 1)
         )
         scope['x_scale'] = self.arguments['x_scale']
-        scope['num_classes'] = 2
+        if not scope.get('freeze_num_classes', False):
+            scope['num_classes'] = 2
         scope['per_cloud'] = False
         scope['loss'] = 'sparse_categorical_crossentropy'
         scope.setdefault('metrics', []).append('accuracy')
