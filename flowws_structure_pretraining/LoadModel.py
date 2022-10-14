@@ -79,7 +79,9 @@ class LoadModel(flowws.Stage):
             workflow = json.loads(traj.handle.readStr('workflow.json'))
             stages = []
             for stage in workflow['stages']:
-                if stage['type'] in ('FileLoader', 'PyriodicLoader'):
+                if stage['type'] in self.scope.get('skip_loaded_stages', []):
+                    continue
+                elif stage['type'] in ('FileLoader', 'PyriodicLoader'):
                     continue
                 elif stage['type'] in ('Train', 'Save'):
                     continue
