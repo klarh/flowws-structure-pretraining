@@ -87,14 +87,22 @@ class EmbeddingDistance(flowws.Stage):
             metric = 'angular' if mode.endswith('cosine') else 'euclidean'
         else:
             metric = 'cosine' if mode.endswith('cosine') else 'euclidean'
-        reference_embedding = scope.get('reference_embedding', scope['embedding'])
+        reference_embedding = scope.get(
+            'reference_embedding', scope.get('embedding', None)
+        )
         scope['reference_embedding'] = reference_embedding
 
-        child_arg_names = {arg.name for arg in EvaluateEmbedding.ARGS}
-        child_args = {k: v for (k, v) in self.arguments.items() if k in child_arg_names}
-        EvaluateEmbedding(**child_args).run(scope, storage)
-        contexts = scope['embedding_contexts']
-        query_embedding = scope['embedding']
+        if 'query_embedding' not in scope:
+            child_arg_names = {arg.name for arg in EvaluateEmbedding.ARGS}
+            child_args = {
+                k: v for (k, v) in self.arguments.items() if k in child_arg_names
+            }
+            EvaluateEmbedding(**child_args).run(scope, storage)
+            contexts = scope['embedding_contexts']
+            query_embedding = scope['embedding']
+        else:
+            contexts = scope['query_embedding_contexts']
+            query_embedding = scope['query_embedding']
 
         if self.arguments['summarize']:
             print('Reference embedding shape:', reference_embedding.shape)
