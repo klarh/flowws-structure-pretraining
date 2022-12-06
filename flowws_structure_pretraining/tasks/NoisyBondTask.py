@@ -41,9 +41,9 @@ class NoisyBondTask(flowws.Stage):
         self.use_weights = scope.get('use_bond_weights', False)
         max_types = scope['max_types']
         self.type_dim = 2 * max_types
-
         nlist_generator = scope['nlist_generator']
         frames = []
+        # dict_keys(['metadata', 'workflow', 'loaded_frames', 'max_types', 'nlist_generator', 'pad_size', 'neighborhood_size'])
         for frame in scope['loaded_frames']:
             frame = process_frame(frame, nlist_generator, max_types)
             frames.append(frame)
