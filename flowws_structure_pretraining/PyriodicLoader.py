@@ -39,7 +39,6 @@ class PyriodicLoader(flowws.Stage):
             custom_context = {}
             for (key, val) in self.arguments['custom_context']:
                 custom_context[key] = val
-
         for name in self.arguments['structures']:
             for (src_frame,) in pyriodic.db.query(
                 'select structure from unit_cells where name = ? limit 1', (name,)

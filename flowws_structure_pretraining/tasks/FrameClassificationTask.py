@@ -88,7 +88,7 @@ class FrameClassificationTask(flowws.Stage):
         max_types = scope['max_types']
         x_scale = self.arguments['x_scale']
         remap = Remap()
-        if self.arguments['zero_class']:
+        if 'zero_class' in self.arguments and self.arguments['zero_class']:
             remap('None')
 
         nlist_generator = scope['nlist_generator']
@@ -119,7 +119,6 @@ class FrameClassificationTask(flowws.Stage):
                     continue
 
             (rijs, tijs, wijs) = index_frame(frame, samp, pad_size, 2 * max_types)
-
             rs.append(rijs)
             ts.append(tijs)
             ws.append(wijs)
@@ -250,3 +249,4 @@ class FrameClassificationTask(flowws.Stage):
         scope.setdefault('metrics', []).append('accuracy')
         scope['multilabel'] = self.arguments.get('multilabel', None)
         scope['per_cloud'] = self.arguments['per_cloud']
+       # scope['validation_data'] = (scope['x_train'],scope['y_train']) 

@@ -93,7 +93,6 @@ class EnvironmentGenerator:
     def sample(self, seed=13, loop=True, subsample=None):
         rng = np.random.default_rng(seed)
         particle_indices = []
-
         if subsample is not None:
             if np.array(subsample).size == 1:
                 if subsample < 0:

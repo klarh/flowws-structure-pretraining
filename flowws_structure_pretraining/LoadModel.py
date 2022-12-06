@@ -81,7 +81,7 @@ class LoadModel(flowws.Stage):
             for stage in workflow['stages']:
                 if stage['type'] in self.scope.get('skip_loaded_stages', []):
                     continue
-                elif stage['type'] in ('FileLoader', 'PyriodicLoader'):
+                elif stage['type'] in ('FileLoader', 'PyriodicLoader', 'GEOMLoader'):
                     continue
                 elif stage['type'] in ('Train', 'Save'):
                     continue
