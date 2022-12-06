@@ -35,6 +35,7 @@ module_names = [
     'NearestNeighbors',
     'NormalizeNeighborDistance',
     'PyriodicLoader',
+    'GEOMLoader',
     'SANNeighbors',
     'VoronoiNeighbors',
 ]
@@ -80,6 +81,7 @@ module_names = [
     'FrameClassificationTask',
     'FrameRegressionTask',
     'NearBondTask',
+    'GEOMRegressionTask',
     'NearestBondTask',
     'NoisyBondTask',
     'ShiftIdentificationTask',
