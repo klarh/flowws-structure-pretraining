@@ -8,5 +8,6 @@ from .LoadModel import LoadModel
 from .NearestNeighbors import NearestNeighbors
 from .NormalizeNeighborDistance import NormalizeNeighborDistance
 from .PyriodicLoader import PyriodicLoader
+from .GEOMLoader import GEOMLoader
 from .SANNeighbors import SANNeighbors
 from .VoronoiNeighbors import VoronoiNeighbors
