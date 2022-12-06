@@ -1,0 +1,6 @@
+**/__pycache__/
+*.sqlite
+geom_json
+build
+.venv
+archives
