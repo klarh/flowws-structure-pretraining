@@ -99,6 +99,7 @@ class FrameClassificationTask(flowws.Stage):
 
         rs, ts, ws, ys, ctxs = [], [], [], [], []
         for frame in frames:
+            encoded_type = remap(frozenset(frame.context.items()))
             samp = np.arange(len(frame.positions))
             if 'subsample' in self.arguments:
                 filt = rng.uniform(size=len(samp))
@@ -112,7 +113,6 @@ class FrameClassificationTask(flowws.Stage):
             rs.append(rijs)
             ts.append(tijs)
             ws.append(wijs)
-            encoded_type = remap(frozenset(frame.context.items()))
             ys.append(np.full_like(rijs[..., :1], encoded_type, dtype=np.int32))
             ctxs.extend(len(rijs) * [frame.context])
 
