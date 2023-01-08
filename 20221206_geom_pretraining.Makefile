@@ -56,7 +56,8 @@ PYRIODIC_NOTRAIN_STRUCTURES:=aP4-Cf cF136-Si cF8-C cI16-Li cI16-Si cI58-Mn cP20-
 PYRIODIC_NOTRAIN_FRAMES:=PyriodicLoader -z ${PYRIODIC_SIZE} -s ${PYRIODIC_NOTRAIN_STRUCTURES} -n ${PYRIODIC_NOISE}
 PYRIODIC_ALL_STRUCTURES:=${PYRIODIC_NOTRAIN_STRUCTURES} ${PYRIODIC_TRAIN_STRUCTURES}
 PYRIODIC_ALL_FRAMES:=PyriodicLoader -z ${PYRIODIC_SIZE} -s ${PYRIODIC_ALL_STRUCTURES} -n ${PYRIODIC_NOISE}
-GEOM_ALL_FRAMES:=GEOMLoader -d geom_json 
+#GEOM_ALL_FRAMES:=GEOMLoader -d geom_json
+GEOM_ALL_FRAMES:=GEOMLoader -d /scratch/ssd002/datasets/GEOM/extracted_geom/
 
 # tasks
 NOISY_BOND:=NoisyBondTask -n .5 --seed ${SEED}
@@ -467,11 +468,12 @@ dump.frame_classification.pyriodic_all_frames.sqlite:
 		${FRAME_CLASSIFICATION} --subsample .1 ${FRAME_CLASSIFICATION_ARCH} ${FRAME_CLASSIFICATION_TRAIN} \
 		flowws_keras_experimental.Save --save-model 1 -f frame_classification pyriodic_all_frames
 	
-dump.frame_regression.geom_all_frames.sqlite: dump.noisy_bond.geom_all_frames.sqlite
+#dump.frame_regression.geom_all_frames.sqlite: dump.noisy_bond.geom_all_frames.sqlite
+#LoadModel --filename $< --only-model 1 
+dump.frame_regression.geom_all_frames.sqlite:
 	${PYTHON} -m flowws.run \
 		InitializeTF ${INITIALIZETF_EXTRA_ARGS} \
 		${GEOM_ALL_FRAMES} -v ${VAL_SPLIT} \
-		LoadModel --filename $< --only-model 1 \
 		${NEIGHBOR_CALC} \
 		${GEOM_REGRESSION} ${FRAME_REGRESSION_ARCH} ${GEOM_REGRESSION_TRAIN} --shuffle False \
 		flowws_keras_experimental.Save --save-model 1 -f frame_regression geom_all_frames
