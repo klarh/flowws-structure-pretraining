@@ -14,7 +14,6 @@ flowws==0.5.2
 flowws-analysis==0.7.0
 flowws-keras-experimental==0.2.0
 flowws-keras-geometry==0.3.0
-flowws-structure-pretraining==0.0.1
 fonttools==4.34.4
 freud-analysis==2.10.0
 garnett==0.7.1
@@ -25,7 +24,7 @@ google-auth-oauthlib==0.4.6
 google-pasta==0.2.0
 greenlet==1.1.2
 grpcio==1.46.1
-gtar==1.1.2
+#gtar==1.1.2
 h5py==3.6.0
 idna==3.3
 joblib==1.1.0
@@ -38,7 +37,6 @@ llvmlite==0.38.1
 Markdown==3.3.7
 matplotlib==3.5.2
 matter-chimera==1.0
-matter-gryffin==0+unknown
 numba==0.55.2
 numpy==1.22.3
 oauthlib==3.2.0
