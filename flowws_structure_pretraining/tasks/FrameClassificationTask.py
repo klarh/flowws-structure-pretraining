@@ -75,6 +75,13 @@ class FrameClassificationTask(flowws.Stage):
             float,
             help='If given, use the value to add a loss penalty for non-close probabilities',
         ),
+        Arg(
+            'delete_context_keys',
+            None,
+            [str],
+            [],
+            help='Delete the given context keys when mapping labels',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -99,7 +106,10 @@ class FrameClassificationTask(flowws.Stage):
 
         rs, ts, ws, ys, ctxs = [], [], [], [], []
         for frame in frames:
-            encoded_type = remap(frozenset(frame.context.items()))
+            context = dict(frame.context)
+            for key in self.arguments['delete_context_keys']:
+                context.pop(key, None)
+            encoded_type = remap(frozenset(sorted(context.items())))
             samp = np.arange(len(frame.positions))
             if 'subsample' in self.arguments:
                 filt = rng.uniform(size=len(samp))
