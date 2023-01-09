@@ -45,9 +45,12 @@ def process_iter():
                 types = conformer['xyz'][:, 0]
                 positions = conformer['xyz'][:, 1:]
 
-                Lx = np.max(positions[:, 0]) - np.min(positions[:, 0])
-                Ly = np.max(positions[:, 1]) - np.min(positions[:, 1])
-                Lz = np.max(positions[:, 2]) - np.min(positions[:, 2])
+                Lx = np.max(positions[:, 0]) - np.min(positions[:, 0])+1
+                Ly = np.max(positions[:, 1]) - np.min(positions[:, 1])+1
+                Lz = np.max(positions[:, 2]) - np.min(positions[:, 2])+1
+                if Lx ==0 or Ly == 0 or Lz ==0:
+                    print(positions)
+                    print(0, smile, ii); import sys; sys.exit(0)
                 box = [np.ceil(Lx * 16), np.ceil(Ly * 16), np.ceil(Lz * 16), 0, 0, 0]
 
                 context = {"bw": np.float32(conformer['boltzmannweight']),

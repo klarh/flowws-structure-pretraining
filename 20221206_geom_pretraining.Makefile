@@ -14,7 +14,7 @@ else ifeq ($(NEIGHBOR_MODE),rdfdist1)
 else ifeq ($(NEIGHBOR_MODE),rdfdist2)
 	NEIGHBOR_CALC:=DistanceNeighbors --rdf-shells 2 --max-neighbors 64
 else ifeq ($(NEIGHBOR_MODE),nearest)
-	NEIGHBOR_COUNT:=2
+	NEIGHBOR_COUNT:=20
 	NEIGHBOR_CALC:=NearestNeighbors -n ${NEIGHBOR_COUNT}
 endif
 
@@ -69,6 +69,7 @@ SHIFT_ID:=ShiftIdentificationTask --scale .5 --seed ${SEED}
 FRAME_CLASSIFICATION:=FrameClassificationTask --seed ${SEED} --multilabel ${MULTILABEL} --per-cloud 1 ${FRAME_CLASSIFICATION_EXTRA_ARGS}
 FRAME_REGRESSION:=FrameRegressionTask --seed ${SEED}
 GEOM_REGRESSION:=GEOMRegressionTask --seed ${SEED}
+#GEOM_REGRESSION:=GalaPotentialRegressor --predict-energy 0 --predict-forces 1 --seed ${SEED}
 
 # models
 NOISY_BOND_ARCH:=GalaBondClassifier --num-blocks ${DEPTH} --n-dim ${WIDTH} --use-multivectors 1 --invar-mode full --covar-mode full --dropout .5 --equivariant-value-normalization momentum_layer --include-normalized-products 1 --normalize-equivariant-values 1 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
@@ -78,6 +79,7 @@ DENOISING_ARCH:=GalaVectorAutoencoder --num-blocks ${DEPTH} --n-dim ${WIDTH} --n
 SHIFT_ID_ARCH:=GalaBondRegressor --num-blocks ${DEPTH} --n-dim ${WIDTH} --use-multivectors 1 --invar-mode full --covar-mode full --drop-geometric-embeddings 1 --dropout 1e-1 --equivariant-value-normalization none --include-normalized-products 1 --normalize-equivariant-values 1 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
 FRAME_CLASSIFICATION_ARCH:=GalaBondClassifier --num-blocks ${DEPTH} --n-dim ${WIDTH} --use-multivectors 1 --invar-mode full --covar-mode full --merge-fun concat --join-fun concat --dropout .5 --equivariant-value-normalization momentum_layer --include-normalized-products 1 --normalize-equivariant-values 1 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
 FRAME_REGRESSION_ARCH:=GalaScalarRegressor --num-blocks ${DEPTH} --n-dim ${WIDTH} --use-multivectors 1 --invar-mode full --covar-mode full --dropout .1 --equivariant-value-normalization momentum_layer --include-normalized-products 1 --normalize-equivariant-values 1 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
+GEOM_REGRESSION_ARCH:=GalaPotentialRegressor --predict-energy 1 --predict-forces 0 --num-blocks ${DEPTH} --n-dim ${WIDTH} --use-multivectors 1 --invar-mode full --covar-mode full --dropout .1 --equivariant-value-normalization momentum_layer --include-normalized-products 1 --normalize-equivariant-values 1 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
 
 # training
 GENERATOR_TRAIN:=flowws_keras_experimental.Train --epochs ${EPOCHS} --generator-train-steps 2048 --generator-val-steps 512 --use-multiprocessing False --catch-keyboard-interrupt 1 --reduce-lr 4 --early-stopping 10 --early-stopping-best 1 --recompile 1 --accumulate-gradients 8 --seed ${SEED} ${EXTRA_TRAIN_ARGS}
@@ -470,12 +472,13 @@ dump.frame_classification.pyriodic_all_frames.sqlite:
 	
 #dump.frame_regression.geom_all_frames.sqlite: dump.noisy_bond.geom_all_frames.sqlite
 #LoadModel --filename $< --only-model 1 
+	#${NEIGHBOR_CALC} 
 dump.frame_regression.geom_all_frames.sqlite:
 	${PYTHON} -m flowws.run \
 		InitializeTF ${INITIALIZETF_EXTRA_ARGS} \
 		${GEOM_ALL_FRAMES} -v ${VAL_SPLIT} \
-		${NEIGHBOR_CALC} \
-		${GEOM_REGRESSION} ${FRAME_REGRESSION_ARCH} ${GEOM_REGRESSION_TRAIN} --shuffle False \
+	    ${NEIGHBOR_CALC} \
+		${GEOM_REGRESSION} ${GEOM_REGRESSION_ARCH} ${GEOM_REGRESSION_TRAIN} --shuffle False \
 		flowws_keras_experimental.Save --save-model 1 -f frame_regression geom_all_frames
 
 output.EmbeddingPlotter.structure_frames_with_iQc.%.pca.pdf: %
