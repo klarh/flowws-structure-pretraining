@@ -2,6 +2,13 @@ import tensorflow as tf
 from tensorflow import keras
 
 
+class GradientLayer(keras.layers.Layer):
+    """Calculates the gradient of one input with respect to the other."""
+
+    def call(self, inputs):
+        return tf.gradients(inputs[0], inputs[1])
+
+
 class NeighborDistanceNormalization(keras.layers.Layer):
     def __init__(self, mode='min', *args, **kwargs):
         self.mode = mode
@@ -47,3 +54,8 @@ class NoiseInjector(keras.layers.Layer):
         result['magnitude'] = self.magnitude
         result['only_during_training'] = self.only_during_training
         return result
+
+
+class SumLayer(keras.layers.Layer):
+    def call(self, inputs):
+        return tf.math.reduce_sum(inputs)
