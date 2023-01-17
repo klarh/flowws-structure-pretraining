@@ -7,12 +7,16 @@ import numpy as np
 from tensorflow import keras
 
 NORMALIZATION_LAYERS = {
-    None: lambda _: [],
-    'none': lambda _: [],
-    'batch': lambda _: [keras.layers.BatchNormalization()],
-    'layer': lambda _: [keras.layers.LayerNormalization()],
-    'momentum': lambda _: [gala.MomentumNormalization()],
-    'momentum_layer': lambda _: [gala.MomentumLayerNormalization()],
+    None: lambda _, **kwargs: [],
+    'none': lambda _, **kwargs: [],
+    'batch': lambda _, **kwargs: [keras.layers.BatchNormalization()],
+    'layer': lambda _, **kwargs: [keras.layers.LayerNormalization()],
+    'momentum': lambda _, **kwargs: [
+        gala.MomentumNormalization(momentum=kwargs.get('momentum', 0.99))
+    ],
+    'momentum_layer': lambda _, **kwargs: [
+        gala.MomentumLayerNormalization(momentum=kwargs.get('momentum', 0.99))
+    ],
 }
 
 NORMALIZATION_LAYER_DOC = ' (any of {})'.format(
@@ -157,6 +161,13 @@ class GalaCore(flowws.Stage):
             0,
             help='If given, add random noise with the given magnitude to input coordinates',
         ),
+        Arg(
+            'normalization_kwargs',
+            None,
+            [(str, eval)],
+            [],
+            help='Keyword arguments to pass to normalization functions',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -176,9 +187,10 @@ class GalaCore(flowws.Stage):
         self.covar_mode = self.arguments['covar_mode']
         self.DropoutLayer = scope.get('dropout_class', keras.layers.Dropout)
 
+        normalization_kwargs = dict(self.arguments.get('normalization_kwargs', []))
         self.normalization_getter = lambda key: (
             NORMALIZATION_LAYERS[self.arguments.get(key + '_normalization', None)](
-                self.rank
+                self.rank, **normalization_kwargs
             )
         )
 
