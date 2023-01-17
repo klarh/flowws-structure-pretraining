@@ -67,6 +67,7 @@ module_names = [
     'GalaBondClassifier',
     'GalaBondRegressor',
     'GalaBottleneckAutoencoder',
+    'GalaCore',
     'GalaScalarRegressor',
     'GalaVectorAutoencoder',
 ]

@@ -1,5 +1,6 @@
 from .GalaBondClassifier import GalaBondClassifier
 from .GalaBondRegressor import GalaBondRegressor
 from .GalaBottleneckAutoencoder import GalaBottleneckAutoencoder
+from .GalaCore import GalaCore
 from .GalaScalarRegressor import GalaScalarRegressor
 from .GalaVectorAutoencoder import GalaVectorAutoencoder

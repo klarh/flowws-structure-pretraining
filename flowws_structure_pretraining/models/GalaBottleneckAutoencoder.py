@@ -1,24 +1,10 @@
-from .internal import NeighborDistanceNormalization
+from .GalaCore import GalaCore
 
 import flowws
 from flowws import Argument as Arg
 from geometric_algebra_attention import keras as gala
 from tensorflow import keras
-import numpy as np
 import tensorflow as tf
-
-NORMALIZATION_LAYERS = {
-    None: lambda _: [],
-    'none': lambda _: [],
-    'batch': lambda _: [keras.layers.BatchNormalization()],
-    'layer': lambda _: [keras.layers.LayerNormalization()],
-    'momentum': lambda _: [gala.MomentumNormalization()],
-    'momentum_layer': lambda _: [gala.MomentumLayerNormalization()],
-}
-
-NORMALIZATION_LAYER_DOC = ' (any of {})'.format(
-    ','.join(map(str, NORMALIZATION_LAYERS))
-)
 
 
 class VAESampler(keras.layers.Layer):
@@ -117,113 +103,16 @@ class StaticEmbedding(keras.layers.Embedding):
 
 
 @flowws.add_stage_arguments
-class GalaBottleneckAutoencoder(flowws.Stage):
+class GalaBottleneckAutoencoder(GalaCore):
     """Reproduce point clouds after a bottleneck layer"""
 
-    ARGS = [
-        Arg('n_dim', '-n', int, 32, help='Working dimension of model'),
-        Arg('dilation_factor', None, float, 2.0, help='Width factor for MLPs'),
-        Arg(
-            'block_nonlinearity',
-            '-b',
-            bool,
-            True,
-            help='Add a nonlinearity to each block',
-        ),
-        Arg(
-            'residual',
-            '-r',
-            bool,
-            True,
-            help='Use residual connections over each block',
-        ),
-        Arg(
-            'join_fun',
-            '-j',
-            str,
-            'concat',
-            help='Function to use for joining invariant and node-level signals',
-        ),
-        Arg(
-            'merge_fun',
-            '-m',
-            str,
-            'concat',
-            help='Function to use for merging node-level signals',
-        ),
-        Arg('dropout', '-d', float, 0, help='Dropout probability within network'),
-        Arg('num_blocks', None, int, 1, help='Number of blocks to use'),
+    ARGS = GalaCore.ARGS + [
         Arg(
             'num_vector_blocks',
             None,
             int,
             1,
             help='Number of vector-valued blocks to use',
-        ),
-        Arg('rank', None, int, 2, help='Attention calculation rank'),
-        Arg(
-            'activation',
-            '-a',
-            str,
-            'relu',
-            help='Activation function to use within network',
-        ),
-        Arg(
-            'normalize_distances',
-            None,
-            str,
-            help='Create scale-invariant networks by normalizing neighbor distances (mean/min)',
-        ),
-        Arg('invar_mode', '-i', str, 'full', help='Rotation-invariant mode switch'),
-        Arg('covar_mode', '-c', str, 'full', help='Rotation-covariant mode switch'),
-        Arg(
-            'score_normalization',
-            None,
-            str,
-            'layer',
-            help=(
-                'Normalizations to apply to score (attention) function'
-                + NORMALIZATION_LAYER_DOC
-            ),
-        ),
-        Arg(
-            'value_normalization',
-            None,
-            str,
-            'layer',
-            help=(
-                'Normalizations to apply to value function' + NORMALIZATION_LAYER_DOC
-            ),
-        ),
-        Arg(
-            'block_normalization',
-            None,
-            str,
-            'layer',
-            help=(
-                'Normalizations to apply to the output of each attention block'
-                + NORMALIZATION_LAYER_DOC
-            ),
-        ),
-        Arg(
-            'invariant_value_normalization',
-            None,
-            str,
-            'momentum',
-            help=(
-                'Normalizations to apply to value function, before MLP layers'
-                + NORMALIZATION_LAYER_DOC
-            ),
-        ),
-        Arg(
-            'equivariant_value_normalization',
-            None,
-            str,
-            'layer',
-            help=(
-                'Normalizations to apply to equivariant results'
-                + NORMALIZATION_LAYER_DOC
-            ),
         ),
         Arg('variational', '-v', bool, True, help='If True, make a VAE'),
         Arg('vae_dim', None, int, 8, help='Dimensionality of latent space for VAE'),
@@ -242,33 +131,12 @@ class GalaBottleneckAutoencoder(flowws.Stage):
             help='Number of reference vectors to produce',
         ),
         Arg(
-            'use_multivectors',
-            None,
-            bool,
-            False,
-            help='If True, use multivector intermediates for calculations',
-        ),
-        Arg(
             'cross_attention',
             None,
             bool,
             True,
             help='If True, generate embeddings using cross-attention between the '
             'generated basis set and vector intermediates',
-        ),
-        Arg(
-            'include_normalized_products',
-            None,
-            bool,
-            False,
-            help='Also include normalized geometric product terms',
-        ),
-        Arg(
-            'normalize_equivariant_values',
-            None,
-            bool,
-            False,
-            help='If True, multiply vector values by normalized vectors at each attention step',
         ),
         Arg(
             'transfer_freeze',
@@ -280,167 +148,19 @@ class GalaBottleneckAutoencoder(flowws.Stage):
     ]
 
     def run(self, scope, storage):
-        use_weights = scope.get('use_bond_weights', False)
-        n_dim = self.arguments['n_dim']
-        dilation = self.arguments['dilation_factor']
-        block_nonlin = self.arguments['block_nonlinearity']
-        residual = self.arguments['residual']
-        join_fun = self.arguments['join_fun']
-        merge_fun = self.arguments['merge_fun']
-        dropout = self.arguments['dropout']
-        num_blocks = self.arguments['num_blocks']
-        rank = self.arguments['rank']
-        activation = self.arguments['activation']
-        distance_norm = self.arguments.get('normalize_distances', None)
-        invar_mode = self.arguments['invar_mode']
-        covar_mode = self.arguments['covar_mode']
         n_ref = self.arguments['num_reference_vectors']
-        DropoutLayer = scope.get('dropout_class', keras.layers.Dropout)
-
-        normalization_getter = lambda key: (
-            NORMALIZATION_LAYERS[self.arguments.get(key + '_normalization', None)](rank)
-        )
-
-        if self.arguments['use_multivectors']:
-            Attention = gala.MultivectorAttention
-            AttentionVector = gala.Multivector2MultivectorAttention
-            AttentionLabeled = gala.LabeledMultivectorAttention
-            maybe_upcast_vector = gala.Vector2Multivector()
-            maybe_downcast_vector = gala.Multivector2Vector()
-        else:
-            Attention = gala.VectorAttention
-            AttentionVector = gala.Vector2VectorAttention
-            AttentionLabeled = gala.LabeledVectorAttention
-            maybe_upcast_vector = lambda x: x
-            maybe_downcast_vector = lambda x: x
-
-        type_dim = 2 * scope.get('max_types', 1)
-        dilation_dim = int(np.round(n_dim * dilation))
-
-        def make_layer_inputs(x, v):
-            nonnorm = (x, v, w_in) if use_weights else (x, v)
-            if self.arguments['normalize_equivariant_values']:
-                xnorm = keras.layers.LayerNormalization()(x)
-                norm = (xnorm, v, w_in) if use_weights else (xnorm, v)
-                return [nonnorm] + (rank - 1) * [norm]
-            else:
-                return rank * [nonnorm]
-
-        def make_scorefun():
-            layers = [keras.layers.Dense(dilation_dim)]
-
-            layers.extend(normalization_getter('score'))
-
-            layers.append(keras.layers.Activation(activation))
-            if dropout:
-                layers.append(DropoutLayer(dropout))
-
-            layers.append(keras.layers.Dense(1))
-            return keras.models.Sequential(layers)
-
-        def make_valuefun(dim, in_network=True):
-            layers = []
-
-            if in_network:
-                layers.extend(normalization_getter('invariant_value'))
-
-            layers.append(keras.layers.Dense(dilation_dim))
-            layers.extend(normalization_getter('value'))
-
-            layers.append(keras.layers.Activation(activation))
-            if dropout:
-                layers.append(DropoutLayer(dropout))
-
-            layers.append(keras.layers.Dense(dim))
-            return keras.models.Sequential(layers)
-
-        def make_block(last_x, last):
-            residual_in_x = last_x
-            residual_in = last
-            if self.arguments['use_multivectors']:
-                arg = make_layer_inputs(last_x, last)
-                last_x = gala.Multivector2MultivectorAttention(
-                    make_scorefun(),
-                    make_valuefun(n_dim),
-                    make_valuefun(1),
-                    False,
-                    rank=rank,
-                    join_fun=join_fun,
-                    merge_fun=merge_fun,
-                    invariant_mode=invar_mode,
-                    covariant_mode=covar_mode,
-                    include_normalized_products=self.arguments[
-                        'include_normalized_products'
-                    ],
-                )(arg)
-
-            arg = make_layer_inputs(last_x, last)
-            last = Attention(
-                make_scorefun(),
-                make_valuefun(n_dim),
-                False,
-                rank=rank,
-                join_fun=join_fun,
-                merge_fun=merge_fun,
-                invariant_mode=invar_mode,
-                covariant_mode=covar_mode,
-                include_normalized_products=self.arguments[
-                    'include_normalized_products'
-                ],
-            )(arg)
-
-            if block_nonlin:
-                last = make_valuefun(n_dim, in_network=False)(last)
-
-            if residual:
-                last = last + residual_in
-
-            for layer in normalization_getter('block'):
-                last = layer(last)
-
-            if self.arguments['use_multivectors']:
-                last_x = residual_in_x + last_x
-                for layer in normalization_getter('equivariant_value'):
-                    last_x = layer(last_x)
-
-            return last_x, last
-
-        def make_vector_block(rs, vs):
-            residual_in = rs
-            rs = AttentionVector(
-                make_scorefun(),
-                make_valuefun(n_dim),
-                make_valuefun(1),
-                False,
-                rank=rank,
-                join_fun=join_fun,
-                invariant_mode=invar_mode,
-                covariant_mode=covar_mode,
-                include_normalized_products=self.arguments[
-                    'include_normalized_products'
-                ],
-                merge_fun=merge_fun,
-            )([rs, vs])
-
-            if residual:
-                rs = rs + residual_in
-
-            for layer in normalization_getter('equivariant_value'):
-                rs = layer(rs)
-
-            return rs
 
         def make_labeled_block(last):
-            last_x = AttentionLabeled(
-                make_scorefun(),
-                make_valuefun(n_dim),
-                make_valuefun(1),
+            last_x = self.AttentionLabeled(
+                self.make_scorefun(),
+                self.make_valuefun(self.n_dim),
+                self.make_valuefun(1),
                 True,
-                rank=rank,
-                join_fun=join_fun,
-                merge_fun=merge_fun,
-                invariant_mode=invar_mode,
-                covariant_mode=covar_mode,
+                rank=self.rank,
+                join_fun=self.join_fun,
+                merge_fun=self.merge_fun,
+                invariant_mode=self.invar_mode,
+                covariant_mode=self.covar_mode,
                 include_normalized_products=self.arguments[
                     'include_normalized_products'
                 ],
@@ -457,65 +177,54 @@ class GalaBottleneckAutoencoder(flowws.Stage):
                 frozen_model.trainable = False
                 (last_x, last) = frozen_model(inputs)
         else:
-            x_in = keras.layers.Input((None, 3), name='rij')
-            v_in = keras.layers.Input((None, type_dim), name='tij')
-            w_in = None
-            inputs = [x_in, v_in]
-            if use_weights:
-                w_in = keras.layers.Input((None,), name='wij')
-                inputs = [x_in, v_in, w_in]
+            super().run(scope, storage)
 
-            last_x = x_in
-            if distance_norm in ('mean', 'min'):
-                last_x = NeighborDistanceNormalization(distance_norm)(last_x)
-            elif distance_norm == 'none':
-                pass
-            elif distance_norm:
-                raise NotImplementedError(distance_norm)
+            (last_x, last) = scope['encoded_base']
+            inputs = scope['input_symbol']
 
-            last_x = maybe_upcast_vector(last_x)
-            last = keras.layers.Dense(n_dim)(v_in)
-            for _ in range(num_blocks):
-                last_x, last = make_block(last_x, last)
+            if self.arguments['transfer_freeze']:
+                frozen_model = keras.models.Model(inputs, scope['encoded_base'])
+                frozen_model.trainable = False
+                (last_x, last) = frozen_model(inputs)
 
             reference_last_x = stack_vector_layers(
-                AttentionVector,
+                self.AttentionVector,
                 last_x,
                 last,
                 n_ref,
-                make_scorefun,
-                make_valuefun,
-                make_valuefun,
-                join_fun,
-                merge_fun,
-                n_dim,
-                rank,
-                invar_mode,
-                covar_mode,
+                self.make_scorefun,
+                self.make_valuefun,
+                self.make_valuefun,
+                self.join_fun,
+                self.merge_fun,
+                self.n_dim,
+                self.rank,
+                self.invar_mode,
+                self.covar_mode,
                 include_normalized_products=self.arguments[
                     'include_normalized_products'
                 ],
             )
 
-            reference_last_x = SVDLayer()(maybe_downcast_vector(reference_last_x))
-            reference_last_x = maybe_upcast_vector(reference_last_x)
+            reference_last_x = SVDLayer()(self.maybe_downcast_vector(reference_last_x))
+            reference_last_x = self.maybe_upcast_vector(reference_last_x)
             n_ref = max(n_ref, 3)
 
-            reference_embedding = StaticEmbedding(n_ref, n_dim)(x_in)
+            reference_embedding = StaticEmbedding(n_ref, self.n_dim)(inputs[0])
 
             embedding = last
             if self.arguments['cross_attention']:
                 arg = [last_x, last, w_in] if use_weights else [last_x, last]
                 arg = [arg, [reference_last_x, reference_embedding]]
-                embedding = last = Attention(
-                    make_scorefun(),
-                    make_valuefun(n_dim),
+                embedding = last = self.Attention(
+                    self.make_scorefun(),
+                    self.make_valuefun(self.n_dim),
                     False,
-                    rank=rank,
-                    join_fun=join_fun,
-                    merge_fun=merge_fun,
-                    invariant_mode=invar_mode,
-                    covariant_mode=covar_mode,
+                    rank=self.rank,
+                    join_fun=self.join_fun,
+                    merge_fun=self.merge_fun,
+                    invariant_mode=self.invar_mode,
+                    covariant_mode=self.covar_mode,
                     include_normalized_products=self.arguments[
                         'include_normalized_products'
                     ],
@@ -527,8 +236,8 @@ class GalaBottleneckAutoencoder(flowws.Stage):
                 )
                 embedding = samp.z_mean_projection(last)
                 last = samp(last)
-                if n_dim != self.arguments['vae_dim']:
-                    last = keras.layers.Dense(n_dim)(last)
+                if self.n_dim != self.arguments['vae_dim']:
+                    last = keras.layers.Dense(self.n_dim)(last)
 
             last_x = make_labeled_block(last)
 
@@ -537,9 +246,9 @@ class GalaBottleneckAutoencoder(flowws.Stage):
             scope['embedding_model'] = embedding_model
 
         for _ in range(self.arguments['num_vector_blocks']):
-            last_x = make_vector_block(last_x, last)
+            last_x = self.make_vector_block(last_x, last)
 
-        last_x = maybe_downcast_vector(last_x)
+        last_x = self.maybe_downcast_vector(last_x)
 
         scope['input_symbol'] = inputs
         scope['output'] = last_x
