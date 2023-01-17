@@ -4,7 +4,15 @@ import flowws
 from flowws import Argument as Arg
 from geometric_algebra_attention import keras as gala
 import numpy as np
+import tensorflow as tf
 from tensorflow import keras
+
+
+LAMBDA_ACTIVATIONS = {
+    'leakyswish': lambda x: tf.nn.swish(x) - 1e-2 * tf.nn.swish(-x),
+    'log1pswish': lambda x: tf.math.log1p(tf.nn.swish(x)),
+    'sin': tf.sin,
+}
 
 NORMALIZATION_LAYERS = {
     None: lambda _, **kwargs: [],
@@ -181,7 +189,6 @@ class GalaCore(flowws.Stage):
         self.dropout = self.arguments['dropout']
         num_blocks = self.arguments['num_blocks']
         self.rank = self.arguments['rank']
-        self.activation = self.arguments['activation']
         distance_norm = self.arguments['normalize_distances']
         self.invar_mode = self.arguments['invar_mode']
         self.covar_mode = self.arguments['covar_mode']
@@ -206,6 +213,15 @@ class GalaCore(flowws.Stage):
             self.AttentionLabeled = gala.LabeledVectorAttention
             self.maybe_upcast_vector = lambda x: x
             self.maybe_downcast_vector = lambda x: x
+
+        if self.arguments['activation'] in LAMBDA_ACTIVATIONS:
+            self.activation_layer = lambda: keras.layers.Lambda(
+                LAMBDA_ACTIVATIONS[self.arguments['activation']]
+            )
+        else:
+            self.activation_layer = lambda: keras.layers.Activation(
+                self.arguments['activation']
+            )
 
         type_dim = 2 * scope.get('max_types', 1)
         self.dilation_dim = int(np.round(self.n_dim * dilation))
@@ -265,7 +281,7 @@ class GalaCore(flowws.Stage):
 
         layers.extend(self.normalization_getter('score'))
 
-        layers.append(keras.layers.Activation(self.activation))
+        layers.append(self.activation_layer())
         if self.dropout:
             layers.append(self.DropoutLayer(self.dropout))
 
@@ -281,7 +297,7 @@ class GalaCore(flowws.Stage):
         layers.append(keras.layers.Dense(self.dilation_dim))
         layers.extend(self.normalization_getter('value'))
 
-        layers.append(keras.layers.Activation(self.activation))
+        layers.append(self.activation_layer())
         if self.dropout:
             layers.append(self.DropoutLayer(self.dropout))
 
