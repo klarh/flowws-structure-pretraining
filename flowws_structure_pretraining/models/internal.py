@@ -56,6 +56,44 @@ class NoiseInjector(keras.layers.Layer):
         return result
 
 
+class PairwiseVectorDifference(keras.layers.Layer):
+    """Calculate the difference of all pairs of vectors in the neighborhood axis."""
+
+    def call(self, inputs):
+        return inputs[..., None, :] - inputs[..., None, :, :]
+
+    def compute_mask(self, inputs, mask=None):
+        if mask is None:
+            return mask
+
+        # (..., N, 3) -> (..., N)
+        mask = tf.reduce_all(tf.not_equal(inputs, 0), axis=-1)
+        # (..., N, N)
+        mask = tf.logical_and(mask[..., None], mask[..., None, :])
+        return mask
+
+
+class PairwiseVectorDifferenceSum(keras.layers.Layer):
+    """Calculate the symmetric difference and sum of all pairs of vectors in the neighborhood axis."""
+
+    def call(self, inputs):
+        return tf.concat(
+            [
+                inputs[..., None, :] - inputs[..., None, :, :],
+                inputs[..., None, :] + inputs[..., None, :, :],
+            ],
+            axis=-1,
+        )
+
+    def compute_mask(self, inputs, mask=None):
+        if mask is None:
+            return mask
+
+        mask = tf.reduce_any(tf.not_equal(inputs, 0), axis=-1)
+        mask = tf.logical_and(mask[..., None], mask[..., None, :])
+        return mask
+
+
 class SumLayer(keras.layers.Layer):
     def call(self, inputs):
         return tf.math.reduce_sum(inputs)
