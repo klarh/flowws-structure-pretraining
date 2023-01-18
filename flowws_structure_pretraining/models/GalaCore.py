@@ -1,4 +1,5 @@
 from .internal import NeighborDistanceNormalization, NoiseInjector
+from .internal import PairwiseVectorDifference, PairwiseVectorDifferenceSum
 
 import flowws
 from flowws import Argument as Arg
@@ -223,7 +224,8 @@ class GalaCore(flowws.Stage):
                 self.arguments['activation']
             )
 
-        type_dim = 2 * scope.get('max_types', 1)
+        type_dim = scope.get('max_types', 1)
+        type_dim *= 1 if scope.get('per_molecule', False) else 2
         self.dilation_dim = int(np.round(self.n_dim * dilation))
 
         if 'encoded_base' in scope:
@@ -251,11 +253,13 @@ class GalaCore(flowws.Stage):
             elif distance_norm:
                 raise NotImplementedError(distance_norm)
 
+            (last_x, last) = self.maybe_expand_molecule(scope, last_x, v_in)
+
             if self.arguments['inject_noise']:
                 last_x = NoiseInjector(self.arguments['inject_noise'])(last_x)
 
             last_x = self.maybe_upcast_vector(last_x)
-            last = keras.layers.Dense(self.n_dim)(v_in)
+            last = keras.layers.Dense(self.n_dim)(last)
             for _ in range(num_blocks):
                 last_x, last = self.make_block(last_x, last)
 
@@ -266,6 +270,12 @@ class GalaCore(flowws.Stage):
         scope['output'] = (last_x, last)
         scope['model'] = keras.models.Model(inputs, scope['output'])
         scope['embedding_model'] = keras.models.Model(inputs, embedding)
+
+    def maybe_expand_molecule(self, scope, last_x, last):
+        if scope.get('per_molecule', False):
+            last_x = PairwiseVectorDifference()(last_x)
+            last = PairwiseVectorDifferenceSum()(last)
+        return last_x, last
 
     def make_layer_inputs(self, x, v):
         nonnorm = (x, v, w_in) if self.use_weights else (x, v)
