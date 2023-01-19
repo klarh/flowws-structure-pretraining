@@ -6,7 +6,7 @@ import tensorflow as tf
 
 from .internal import index_frame, process_frame
 from ..internal import Remap
-
+import psutil, os
 
 def multilabel_accuracy(y_true, y_pred):
     prod = 0.5 * (y_true * y_pred + (1 - y_true) * (1 - y_pred))
@@ -93,9 +93,11 @@ class FrameClassificationTask(flowws.Stage):
 
         nlist_generator = scope['nlist_generator']
         frames = []
-        for frame in scope['loaded_frames']:
+        for ii, frame in enumerate(scope['loaded_frames']):
             frame = process_frame(frame, nlist_generator, max_types)
             frames.append(frame)
+            #if ii%100 == 0:
+            #     print(ii, psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2)
 
         if 'pad_size' in scope:
             pad_size = scope['pad_size']

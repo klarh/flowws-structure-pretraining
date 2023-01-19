@@ -10,18 +10,31 @@ import msgpack
 from tqdm import tqdm
 import psutil
 
-
+TARGET_SMILES=set(["C1=CC=C2C=CC=CC2=C1", 
+        "C1=CNC(=O)NC1=O",
+        "C1=CC=CC=C1",
+        "CC(=O)OC1=CC=CC=C1C(=O)O",
+        "C1=CC=C(C(=C1)C(=O)O)O",
+        "C(C=O)C=O",
+        "CCO",
+        "CC1=CC=CC=C1"])
+print(TARGET_SMILES)
 
 def process_iter():
+    Frame = collections.namedtuple(
+        'Frame', ['positions', 'box', 'types', 'context'])
+
     direc='/scratch/ssd002/datasets/GEOM/'
-    drugs_file = os.path.join(direc, 'drugs_crude.msgpack')
+    #drugs_file = os.path.join(direc, 'drugs_crude.msgpack')
+    drugs_file = os.path.join(direc, 'qm9_crude.msgpack')
     unpacker = msgpack.Unpacker(open(drugs_file, 'rb')) # iterator for 292 dictionaries, each containing ~1000 molecules
 
     full_list = {}
     smiles_list = []
+    max_types=0
     for ii, group in tqdm(enumerate(iter(unpacker))):
         #full_list = []
-        if ii >= 100: break
+        #if ii >= 8: break
         smiles = list(group.keys())
         for smile in smiles:
             conformer_dict = group[smile]
@@ -39,7 +52,7 @@ def process_iter():
 
                 context = {"bw": np.float32(conformer['boltzmannweight']),
                            "te": np.float32(conformer['totalenergy']),
-                           "re": np.float32(conformer['relativeenergy']),
+                           "relativeenergy": np.float32(conformer['relativeenergy']),
                            "geom_id": np.float32(conformer['geom_id'])}
                 reformatted_dict = {"name": smile,
                                    "context": context,
@@ -48,16 +61,25 @@ def process_iter():
                                    "space_group": -1,
                                    "types": np.array(types).astype(int)
                                    }
-                conformer_list.append(reformatted_dict)
+                conformer = reformatted_dict
+                conformer_list.append(Frame(conformer['positions'],
+                                                conformer['box'],
+                                                conformer['types'],
+                                                conformer['context']))
+                max_types = max(max_types, int(np.max(conformer['types'])) + 1)
+                #conformer_list.append(reformatted_dict)
             full_list[smile] = conformer_list
             smiles_list.append(smile)
             del conformer_list
             del conformers
             del conformer_dict
         del group
-        print(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2)
     del unpacker
-    return full_list, smiles_list
+    import pandas as pd
+    df = pd.DataFrame(smiles_list)
+    df.to_csv("geom_qm9_smiles_list.csv")
+    import sys; sys.exit(0)
+    return full_list, smiles_list,max_types
 
 @flowws.add_stage_arguments
 class GEOMLoader(flowws.Stage):
@@ -114,7 +136,7 @@ class GEOMLoader(flowws.Stage):
                         smiles = item['smile']
                         conformer_list = item['conformer_list']
                         smiles2frame[smiles] = conformer_list
-        smiles2frame, smiles_list = process_iter()
+        smiles2frame, smiles_list, max_types = process_iter()
         print("Done loading files!")
         np.random.seed(42)
         np.random.shuffle(smiles_list)
@@ -129,18 +151,19 @@ class GEOMLoader(flowws.Stage):
             for ii, smile in enumerate(smiles_list):
                 conformers = smiles2frame[smile]
                 for conformer in conformers:
-                    data_list.append(self.Frame(conformer['positions'],
-                                                conformer['box'],
-                                                conformer['types'],
-                                                conformer['context']))
-                    max_types = max(max_types, int(np.max(conformer['types'])) + 1)
+                    data_list.append(conformer)
+                    #data_list.append(self.Frame(conformer['positions'],
+                    #                            conformer['box'],
+                    #                            conformer['types'],
+                    #                            conformer['context']))
+                    #max_types = max(max_types, int(np.max(conformer['types'])) + 1)
               #  del smiles2frame[smile]
               #  del conformers
-               # if ii%100 == 0:
-        #        print(ii, psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2)
-            return max_types
-        max_types = add_frames(train_smiles, train_frames)
-        _ = add_frames(val_smiles, val_frames)
+            #return max_types
+        #max_types = add_frames(train_smiles, train_frames)
+        add_frames(train_smiles, train_frames)
+        #k_ = add_frames(val_smiles, val_frames)
+        add_frames(val_smiles, val_frames)
         print(f"{len(train_frames)} conformers in train set")
         print(f"{len(val_frames)} conformers in val set")
         print(f"{len(train_frames)  + len(val_frames)} total conformers")
