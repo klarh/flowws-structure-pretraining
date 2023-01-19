@@ -25,7 +25,7 @@ def process_iter():
         'Frame', ['positions', 'box', 'types', 'context'])
 
     direc='/scratch/ssd002/datasets/GEOM/'
-    #drugs_file = os.path.join(direc, 'drugs_crude.msgpack')
+    drugs_file = os.path.join(direc, 'drugs_crude.msgpack')
     drugs_file = os.path.join(direc, 'qm9_crude.msgpack')
     unpacker = msgpack.Unpacker(open(drugs_file, 'rb')) # iterator for 292 dictionaries, each containing ~1000 molecules
 
@@ -34,7 +34,7 @@ def process_iter():
     max_types=0
     for ii, group in tqdm(enumerate(iter(unpacker))):
         #full_list = []
-        #if ii >= 8: break
+        if ii >= 5: break
         smiles = list(group.keys())
         for smile in smiles:
             conformer_dict = group[smile]
@@ -75,10 +75,6 @@ def process_iter():
             del conformer_dict
         del group
     del unpacker
-    import pandas as pd
-    df = pd.DataFrame(smiles_list)
-    df.to_csv("geom_qm9_smiles_list.csv")
-    import sys; sys.exit(0)
     return full_list, smiles_list,max_types
 
 @flowws.add_stage_arguments
