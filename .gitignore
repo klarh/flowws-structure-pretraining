@@ -5,3 +5,5 @@ build
 .venv
 archives
 20220819_maya_pretraining.Makefile
+flowws_structure_pretraining/reformat_geom.py
+environment.yml
