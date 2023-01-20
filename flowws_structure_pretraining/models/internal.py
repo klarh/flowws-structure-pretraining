@@ -36,6 +36,33 @@ class NeighborDistanceNormalization(keras.layers.Layer):
         return result
 
 
+class NeighborhoodReduction(keras.layers.Layer):
+    """Reduce values over the local neighborhood axis."""
+
+    def __init__(self, mode='sum', *args, **kwargs):
+        self.mode = mode
+
+        super().__init__(*args, **kwargs)
+
+    def call(self, inputs, mask=None):
+        result = inputs
+        if mask is not None:
+            mask = tf.expand_dims(mask, -1)
+            result = tf.where(mask, inputs, tf.zeros_like(inputs))
+
+        if self.mode == 'sum':
+            return tf.math.reduce_sum(result, axis=-2)
+        elif self.mode == 'soft_max':
+            return tf.math.reduce_logsumexp(result, axis=-2)
+        else:
+            raise NotImplementedError()
+
+    def get_config(self):
+        result = super().get_config()
+        result['mode'] = self.mode
+        return result
+
+
 class NoiseInjector(keras.layers.Layer):
     def __init__(self, magnitude, only_during_training=True, **kwargs):
         self.magnitude = magnitude
