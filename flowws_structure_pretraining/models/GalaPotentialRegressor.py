@@ -1,4 +1,4 @@
-from .internal import GradientLayer, SumLayer
+from .internal import GradientLayer, NeighborhoodReduction, SumLayer
 from .GalaCore import GalaCore
 
 import flowws
@@ -77,9 +77,10 @@ class GalaPotentialRegressor(GalaCore):
         last = keras.layers.Dense(self.dilation_dim, name='final_mlp')(last)
         last = self.activation_layer()(last)
         last = keras.layers.Dense(1, name='energy_projection', use_bias=False)(last)
-        last = SumLayer()(last)
-        energy_prediction = last
-        force_prediction = GradientLayer()((last, inputs[0]))
+        if scope.get('per_molecule', False):
+            energy_prediction = last = NeighborhoodReduction('sum')(last)
+        total_sum = SumLayer()(last)
+        force_prediction = GradientLayer()((total_sum, inputs[0]))
 
         outputs = []
         if self.arguments['predict_energy']:
