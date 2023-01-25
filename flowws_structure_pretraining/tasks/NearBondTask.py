@@ -99,15 +99,17 @@ class NearBondTask(flowws.Stage):
         rng = np.random.default_rng(seed + 1)
         x_scale = self.arguments['x_scale']
         batch_size = self.arguments['batch_size']
+        done = False
 
-        while True:
+        while not done:
             rs, vs, ys, ws, ctxs = [], [], [], [], []
             max_size = 0
             while len(rs) < batch_size:
                 try:
                     ((r, v, w), context) = next(env_gen)
                 except StopIteration:
-                    return
+                    done = True
+                    break
                 ctxs.append(context)
 
                 rmags = np.linalg.norm(r, axis=-1)
@@ -146,6 +148,8 @@ class NearBondTask(flowws.Stage):
             if not self.use_weights:
                 x = x[:-1]
 
+            if not len(x[0]):
+                return
             if evaluate:
                 yield x, np.array(ys), ctxs
             else:

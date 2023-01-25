@@ -81,15 +81,17 @@ class ShiftIdentificationTask(flowws.Stage):
         rng = np.random.default_rng(seed + 1)
         x_scale = self.arguments['x_scale']
         batch_size = self.arguments['batch_size']
+        done = False
 
-        while True:
+        while not done:
             rs, vs, ys, ws, ctxs = [], [], [], [], []
             max_size = 0
             while len(rs) < batch_size:
                 try:
                     ((r, v, w), context) = next(env_gen)
                 except StopIteration:
-                    return
+                    done = True
+                    break
                 ctxs.append(context)
 
                 y = rng.normal(scale=self.arguments['scale'], size=(3,))
@@ -119,6 +121,8 @@ class ShiftIdentificationTask(flowws.Stage):
 
             ys = np.array(ys)
 
+            if not len(x[0]):
+                return
             if evaluate:
                 yield x, ys, ctxs
             else:

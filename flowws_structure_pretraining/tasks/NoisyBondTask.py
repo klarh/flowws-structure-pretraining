@@ -90,15 +90,17 @@ class NoisyBondTask(flowws.Stage):
         x_scale = self.arguments['x_scale']
         noise_magnitude = self.arguments['noise_magnitude']
         batch_size = self.arguments['batch_size']
+        done = False
 
-        while True:
+        while not done:
             rs, vs, ys, ws, ctxs = [], [], [], [], []
             max_size = 0
             while len(rs) < batch_size:
                 try:
                     ((r, v, w), context) = next(env_gen)
                 except StopIteration:
-                    return
+                    done = True
+                    break
                 ctxs.append(context)
 
                 y = np.zeros(len(r), dtype=np.int32)
@@ -126,6 +128,8 @@ class NoisyBondTask(flowws.Stage):
             if not self.use_weights:
                 x = x[:-1]
 
+            if not len(x[0]):
+                return
             if evaluate:
                 yield x, pad(ys, max_size), ctxs
             else:
