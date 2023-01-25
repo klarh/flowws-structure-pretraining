@@ -177,6 +177,13 @@ class GalaCore(flowws.Stage):
             [],
             help='Keyword arguments to pass to normalization functions',
         ),
+        Arg(
+            'linear_invariant_projection',
+            None,
+            bool,
+            False,
+            help='If True, use a simple linear projection for value nets rather than an MLP',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -303,6 +310,10 @@ class GalaCore(flowws.Stage):
 
         if in_network:
             layers.extend(self.normalization_getter('invariant_value'))
+
+            if self.arguments['linear_invariant_projection']:
+                layers.append(keras.layers.Dense(dim))
+                return keras.models.Sequential(layers)
 
         layers.append(keras.layers.Dense(self.dilation_dim))
         layers.extend(self.normalization_getter('value'))
