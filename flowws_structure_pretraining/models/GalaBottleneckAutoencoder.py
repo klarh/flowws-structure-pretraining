@@ -250,6 +250,9 @@ class GalaBottleneckAutoencoder(GalaCore):
 
         last_x = self.maybe_downcast_vector(last_x)
 
+        if 'equivariant_rescale_factor' in scope:
+            last_x = last_x / scope['equivariant_rescale_factor']
+
         scope['input_symbol'] = inputs
         scope['output'] = last_x
         scope['model'] = keras.models.Model(inputs, scope['output'])

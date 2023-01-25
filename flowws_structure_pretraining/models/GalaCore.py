@@ -184,6 +184,26 @@ class GalaCore(flowws.Stage):
             False,
             help='If True, use a simple linear projection for value nets rather than an MLP',
         ),
+        Arg(
+            'scale_equivariant_factor',
+            None,
+            float,
+            help='If given, normalize input vectors to have length around the given factor',
+        ),
+        Arg(
+            'scale_equivariant_mode',
+            None,
+            str,
+            'mean',
+            help='Summary statistic to use to normalize vectors if scale_equivariant_factor is enabled',
+        ),
+        Arg(
+            'scale_equivariant_embedding',
+            None,
+            bool,
+            False,
+            help='Use a learned rotation-invariant embedding for the scale-equivariant factor',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -252,15 +272,28 @@ class GalaCore(flowws.Stage):
                 w_in = keras.layers.Input((None,), name='wij')
                 inputs = [x_in, v_in, w_in]
 
-            last_x = x_in
-            if distance_norm in ('mean', 'min'):
+            (last_x, last) = self.maybe_expand_molecule(scope, x_in, v_in)
+
+            scope.pop('equivariant_rescale_factor', None)
+            if self.arguments.get('scale_equivariant_factor', None):
+                scale = self.arguments['scale_equivariant_factor']
+                norm_mode = self.arguments['scale_equivariant_mode']
+                last_x, rescale = NeighborDistanceNormalization(norm_mode, scale, True)(
+                    last_x
+                )
+                scope['equivariant_rescale_factor'] = rescale[..., None]
+
+                if self.arguments.get('scale_equivariant_embedding', None):
+                    embedding = keras.layers.Dense(self.n_dim)(
+                        scope['equivariant_rescale_factor']
+                    )
+                    last = last + embedding
+            elif distance_norm in ('mean', 'min'):
                 last_x = NeighborDistanceNormalization(distance_norm)(last_x)
             elif distance_norm == 'none':
                 pass
             elif distance_norm:
                 raise NotImplementedError(distance_norm)
-
-            (last_x, last) = self.maybe_expand_molecule(scope, last_x, v_in)
 
             if self.arguments['inject_noise']:
                 last_x = NoiseInjector(self.arguments['inject_noise'])(last_x)

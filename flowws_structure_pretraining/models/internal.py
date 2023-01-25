@@ -10,29 +10,37 @@ class GradientLayer(keras.layers.Layer):
 
 
 class NeighborDistanceNormalization(keras.layers.Layer):
-    def __init__(self, mode='min', *args, **kwargs):
+    def __init__(
+        self, mode='min', lengthscale=1.0, return_scale=False, *args, **kwargs
+    ):
         self.mode = mode
+        self.lengthscale = float(lengthscale)
+        self.return_scale = return_scale
         super().__init__(*args, **kwargs)
 
     def call(self, inputs):
         if self.mode == 'min':
             distances = tf.linalg.norm(inputs, axis=-1, keepdims=True)
-            scale = 1.0 / tf.maximum(
+            scale = self.lengthscale / tf.maximum(
                 1e-7, tf.math.reduce_min(distances, axis=-2, keepdims=True)
             )
         elif self.mode == 'mean':
             distances = tf.linalg.norm(inputs, axis=-1, keepdims=True)
-            scale = 1.0 / tf.maximum(
+            scale = self.lengthscale / tf.maximum(
                 1e-7, tf.math.reduce_mean(distances, axis=-2, keepdims=True)
             )
         else:
             raise NotImplementedError()
 
+        if self.return_scale:
+            return inputs * scale, scale
         return inputs * scale
 
     def get_config(self):
         result = super().get_config()
+        result['lengthscale'] = self.lengthscale
         result['mode'] = self.mode
+        result['return_scale'] = self.return_scale
         return result
 
 
