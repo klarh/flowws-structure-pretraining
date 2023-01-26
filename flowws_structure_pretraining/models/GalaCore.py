@@ -273,6 +273,7 @@ class GalaCore(flowws.Stage):
                 inputs = [x_in, v_in, w_in]
 
             (last_x, last) = self.maybe_expand_molecule(scope, x_in, v_in)
+            last = keras.layers.Dense(self.n_dim, name='type_embedding')(last)
 
             scope.pop('equivariant_rescale_factor', None)
             if self.arguments.get('scale_equivariant_factor', None):
@@ -284,9 +285,9 @@ class GalaCore(flowws.Stage):
                 scope['equivariant_rescale_factor'] = rescale[..., None]
 
                 if self.arguments.get('scale_equivariant_embedding', None):
-                    embedding = keras.layers.Dense(self.n_dim)(
-                        scope['equivariant_rescale_factor']
-                    )
+                    embedding = keras.layers.Dense(
+                        self.n_dim, name='distance_embedding'
+                    )(rescale)
                     last = last + embedding
             elif distance_norm in ('mean', 'min'):
                 last_x = NeighborDistanceNormalization(distance_norm)(last_x)
@@ -299,7 +300,6 @@ class GalaCore(flowws.Stage):
                 last_x = NoiseInjector(self.arguments['inject_noise'])(last_x)
 
             last_x = self.maybe_upcast_vector(last_x)
-            last = keras.layers.Dense(self.n_dim)(last)
             for _ in range(num_blocks):
                 last_x, last = self.make_block(last_x, last)
 
