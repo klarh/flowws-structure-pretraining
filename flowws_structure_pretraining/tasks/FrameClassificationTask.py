@@ -107,7 +107,7 @@ class FrameClassificationTask(flowws.Stage):
         rs, ts, ws, ys, ctxs = [], [], [], [], []
         for frame in frames:
             context = dict(frame.context)
-            for key in self.arguments['delete_context_keys']:
+            for key in self.arguments.get('delete_context_keys', []):
                 context.pop(key, None)
             encoded_type = remap(frozenset(sorted(context.items())))
             samp = np.arange(len(frame.positions))
