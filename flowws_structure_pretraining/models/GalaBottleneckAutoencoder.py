@@ -214,7 +214,7 @@ class GalaBottleneckAutoencoder(GalaCore):
 
             embedding = last
             if self.arguments['cross_attention']:
-                arg = [last_x, last, w_in] if use_weights else [last_x, last]
+                arg = [last_x, last, w_in] if self.use_weights else [last_x, last]
                 arg = [arg, [reference_last_x, reference_embedding]]
                 embedding = last = self.Attention(
                     self.make_scorefun(),
