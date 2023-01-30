@@ -2,6 +2,19 @@ import tensorflow as tf
 from tensorflow import keras
 
 
+@tf.custom_gradient
+def custom_norm(x):
+    """Calculate the norm of a set of vector-like quantities, with some
+    numeric stabilization applied to the gradient."""
+    y = tf.linalg.norm(x, axis=-1, keepdims=True)
+
+    def grad(dy):
+        y = custom_norm(x)
+        return dy * (x / tf.maximum(y, 1e-19))
+
+    return y, grad
+
+
 class GradientLayer(keras.layers.Layer):
     """Calculates the gradient of one input with respect to the other."""
 
@@ -20,12 +33,18 @@ class NeighborDistanceNormalization(keras.layers.Layer):
 
     def call(self, inputs):
         if self.mode == 'min':
-            distances = tf.linalg.norm(inputs, axis=-1, keepdims=True)
+            distances = custom_norm(inputs)
             scale = self.lengthscale / tf.maximum(
                 1e-7, tf.math.reduce_min(distances, axis=-2, keepdims=True)
             )
+        elif self.mode == 'min_nonzero':
+            distances = custom_norm(inputs)
+            filtered = tf.where(distances == 0.0, 1e9, distances)
+            scale = self.lengthscale / tf.maximum(
+                1e-7, tf.math.reduce_min(filtered, axis=-2, keepdims=True)
+            )
         elif self.mode == 'mean':
-            distances = tf.linalg.norm(inputs, axis=-1, keepdims=True)
+            distances = custom_norm(inputs)
             scale = self.lengthscale / tf.maximum(
                 1e-7, tf.math.reduce_mean(distances, axis=-2, keepdims=True)
             )
@@ -35,6 +54,11 @@ class NeighborDistanceNormalization(keras.layers.Layer):
         if self.return_scale:
             return inputs * scale, scale
         return inputs * scale
+
+    def compute_mask(self, inputs, mask=None):
+        if self.return_scale:
+            return mask, mask
+        return mask
 
     def get_config(self):
         result = super().get_config()
@@ -129,6 +153,26 @@ class PairwiseVectorDifferenceSum(keras.layers.Layer):
         return mask
 
 
+class ResidualMaskedLayer(keras.layers.Layer):
+    def call(self, inputs):
+        left, right = inputs
+        return left + right
+
+    def compute_mask(self, inputs, mask=None):
+        (mask_left, mask_right) = mask
+        if mask_left is None:
+            return mask_right
+        elif mask_right is None:
+            return mask_left
+        return tf.math.logical_and(mask_left, mask_right)
+
+
 class SumLayer(keras.layers.Layer):
     def call(self, inputs):
         return tf.math.reduce_sum(inputs)
+
+
+class ZeroMaskingLayer(keras.layers.Layer):
+    def compute_mask(self, inputs, mask=None):
+        mask = tf.reduce_any(tf.not_equal(inputs, 0), axis=-1)
+        return mask

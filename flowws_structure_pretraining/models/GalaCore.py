@@ -1,5 +1,6 @@
 from .internal import NeighborDistanceNormalization, NoiseInjector
 from .internal import PairwiseVectorDifference, PairwiseVectorDifferenceSum
+from .internal import ResidualMaskedLayer, ZeroMaskingLayer
 
 import flowws
 from flowws import Argument as Arg
@@ -276,6 +277,7 @@ class GalaCore(flowws.Stage):
                 inputs = [x_in, v_in, w_in]
 
             (last_x, last) = self.maybe_expand_molecule(scope, x_in, v_in)
+            last_x = ZeroMaskingLayer()(last_x)
             last = keras.layers.Dense(self.n_dim, name='type_embedding')(last)
 
             scope.pop('equivariant_rescale_factor', None)
@@ -398,13 +400,13 @@ class GalaCore(flowws.Stage):
             last = self.make_valuefun(self.n_dim, in_network=False)(last)
 
         if self.residual:
-            last = last + residual_in
+            last = ResidualMaskedLayer()((last, residual_in))
 
         for layer in self.normalization_getter('block'):
             last = layer(last)
 
         if self.arguments['use_multivectors']:
-            last_x = residual_in_x + last_x
+            last_x = ResidualMaskedLayer()((residual_in_x, last_x))
             for layer in self.normalization_getter('equivariant_value'):
                 last_x = layer(last_x)
 
