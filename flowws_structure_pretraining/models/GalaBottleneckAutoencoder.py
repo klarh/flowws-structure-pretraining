@@ -168,6 +168,7 @@ class GalaBottleneckAutoencoder(GalaCore):
 
             return last_x
 
+        self._init(scope, storage)
         if 'encoded_base' in scope:
             (last_x, last) = scope['encoded_base']
             inputs = scope['input_symbol']

@@ -206,18 +206,17 @@ class GalaCore(flowws.Stage):
         ),
     ]
 
-    def run(self, scope, storage):
+    def _init(self, scope, storage):
         self.use_weights = scope.get('use_bond_weights', False)
         self.n_dim = self.arguments['n_dim']
         dilation = self.arguments['dilation_factor']
+        self.dilation_dim = int(np.round(self.n_dim * dilation))
         self.block_nonlin = self.arguments['block_nonlinearity']
         self.residual = self.arguments['residual']
         self.join_fun = self.arguments['join_fun']
         self.merge_fun = self.arguments['merge_fun']
         self.dropout = self.arguments['dropout']
-        num_blocks = self.arguments['num_blocks']
         self.rank = self.arguments['rank']
-        distance_norm = self.arguments['normalize_distances']
         self.invar_mode = self.arguments['invar_mode']
         self.covar_mode = self.arguments['covar_mode']
         self.DropoutLayer = scope.get('dropout_class', keras.layers.Dropout)
@@ -251,9 +250,13 @@ class GalaCore(flowws.Stage):
                 self.arguments['activation']
             )
 
+    def run(self, scope, storage):
+        self._init(scope, storage)
+        distance_norm = self.arguments['normalize_distances']
+        num_blocks = self.arguments['num_blocks']
+
         type_dim = scope.get('max_types', 1)
         type_dim *= 1 if scope.get('per_molecule', False) else 2
-        self.dilation_dim = int(np.round(self.n_dim * dilation))
 
         if 'encoded_base' in scope:
             (last_x, last) = scope['encoded_base']

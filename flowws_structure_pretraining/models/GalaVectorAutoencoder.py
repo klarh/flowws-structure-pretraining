@@ -34,6 +34,7 @@ class GalaVectorAutoencoder(GalaCore):
     ]
 
     def run(self, scope, storage):
+        self._init(scope, storage)
         if 'encoded_base' not in scope:
             super().run(scope, storage)
 
