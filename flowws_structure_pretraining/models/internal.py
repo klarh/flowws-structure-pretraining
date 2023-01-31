@@ -159,6 +159,8 @@ class ResidualMaskedLayer(keras.layers.Layer):
         return left + right
 
     def compute_mask(self, inputs, mask=None):
+        if mask is None:
+            mask = (None, None)
         (mask_left, mask_right) = mask
         if mask_left is None:
             return mask_right
