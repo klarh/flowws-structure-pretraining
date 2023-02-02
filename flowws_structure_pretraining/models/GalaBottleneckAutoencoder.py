@@ -164,6 +164,7 @@ class GalaBottleneckAutoencoder(GalaCore):
                 include_normalized_products=self.arguments[
                     'include_normalized_products'
                 ],
+                convex_covariants=self.arguments['convex_covariants'],
             )([last, (reference_last_x, reference_embedding)])
 
             return last_x
@@ -205,6 +206,7 @@ class GalaBottleneckAutoencoder(GalaCore):
                 include_normalized_products=self.arguments[
                     'include_normalized_products'
                 ],
+                convex_covariants=self.arguments['convex_covariants'],
             )
 
             reference_last_x = SVDLayer()(self.maybe_downcast_vector(reference_last_x))

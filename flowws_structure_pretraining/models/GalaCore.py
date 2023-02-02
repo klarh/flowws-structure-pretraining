@@ -205,6 +205,13 @@ class GalaCore(flowws.Stage):
             False,
             help='Use a learned rotation-invariant embedding for the scale-equivariant factor',
         ),
+        Arg(
+            'convex_covariants',
+            None,
+            bool,
+            False,
+            help='If True, use convex combinations of covariant values',
+        ),
     ]
 
     def _init(self, scope, storage):
@@ -381,6 +388,7 @@ class GalaCore(flowws.Stage):
                 include_normalized_products=self.arguments[
                     'include_normalized_products'
                 ],
+                convex_covariants=self.arguments['convex_covariants'],
             )(arg)
 
         arg = self.make_layer_inputs(last_x, last)
@@ -421,10 +429,11 @@ class GalaCore(flowws.Stage):
             False,
             rank=self.rank,
             join_fun=self.join_fun,
+            merge_fun=self.merge_fun,
             invariant_mode=self.invar_mode,
             covariant_mode=self.covar_mode,
             include_normalized_products=self.arguments['include_normalized_products'],
-            merge_fun=self.merge_fun,
+            convex_covariants=self.arguments['convex_covariants'],
         )([rs, vs])
 
         if self.residual:

@@ -61,6 +61,7 @@ class GalaBondRegressor(GalaCore):
             invariant_mode=self.invar_mode,
             covariant_mode=self.covar_mode,
             include_normalized_products=self.arguments['include_normalized_products'],
+            convex_covariants=self.arguments['convex_covariants'],
         )(arg, return_invariants=True, return_attention=True)
         last_x = self.maybe_downcast_vector(last_x)
 
