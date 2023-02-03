@@ -169,6 +169,20 @@ class ResidualMaskedLayer(keras.layers.Layer):
         return tf.math.logical_and(mask_left, mask_right)
 
 
+class ScaledMSELoss(keras.losses.MeanSquaredError):
+    def __init__(self, beta, **kwargs):
+        super().__init__(**kwargs)
+        self.beta = beta
+
+    def call(self, y_true, y_pred):
+        return self.beta * super().call(y_true, y_pred)
+
+    def get_config(self):
+        result = super().get_config()
+        result['beta'] = self.beta
+        return result
+
+
 class SumLayer(keras.layers.Layer):
     def call(self, inputs):
         return tf.math.reduce_sum(inputs)
