@@ -228,6 +228,13 @@ class GalaCore(flowws.Stage):
             help='If True, use convex combinations of covariant values',
         ),
         Arg('mlp_layers', None, int, 1, help='Number of hidden layers to use in MLPs'),
+        Arg(
+            'tied_attention',
+            None,
+            bool,
+            False,
+            help='If True, use tied attention weights',
+        ),
     ]
 
     def _init(self, scope, storage):
@@ -256,12 +263,14 @@ class GalaCore(flowws.Stage):
             self.Attention = gala.MultivectorAttention
             self.AttentionVector = gala.Multivector2MultivectorAttention
             self.AttentionLabeled = gala.LabeledMultivectorAttention
+            self.AttentionTied = gala.TiedMultivectorAttention
             self.maybe_upcast_vector = gala.Vector2Multivector()
             self.maybe_downcast_vector = gala.Multivector2Vector()
         else:
             self.Attention = gala.VectorAttention
             self.AttentionVector = gala.Vector2VectorAttention
             self.AttentionLabeled = gala.LabeledVectorAttention
+            self.AttentionTied = gala.TiedVectorAttention
             self.maybe_upcast_vector = lambda x: x
             self.maybe_downcast_vector = lambda x: x
 
@@ -403,9 +412,10 @@ class GalaCore(flowws.Stage):
     def make_block(self, last_x, last):
         residual_in_x = last_x
         residual_in = last
-        if self.arguments['use_multivectors']:
+
+        if self.arguments['tied_attention']:
             arg = self.make_layer_inputs(last_x, last)
-            last_x = self.AttentionVector(
+            (last_x, last) = self.AttentionTied(
                 self.make_scorefun(),
                 self.make_valuefun(self.n_dim),
                 self.make_valuefun(1),
@@ -420,19 +430,39 @@ class GalaCore(flowws.Stage):
                 ],
                 convex_covariants=self.arguments['convex_covariants'],
             )(arg)
+        else:
+            if self.arguments['use_multivectors']:
+                arg = self.make_layer_inputs(last_x, last)
+                last_x = self.AttentionVector(
+                    self.make_scorefun(),
+                    self.make_valuefun(self.n_dim),
+                    self.make_valuefun(1),
+                    False,
+                    rank=self.rank,
+                    join_fun=self.join_fun,
+                    merge_fun=self.merge_fun,
+                    invariant_mode=self.invar_mode,
+                    covariant_mode=self.covar_mode,
+                    include_normalized_products=self.arguments[
+                        'include_normalized_products'
+                    ],
+                    convex_covariants=self.arguments['convex_covariants'],
+                )(arg)
 
-        arg = self.make_layer_inputs(last_x, last)
-        last = self.Attention(
-            self.make_scorefun(),
-            self.make_valuefun(self.n_dim),
-            False,
-            rank=self.rank,
-            join_fun=self.join_fun,
-            merge_fun=self.merge_fun,
-            invariant_mode=self.invar_mode,
-            covariant_mode=self.covar_mode,
-            include_normalized_products=self.arguments['include_normalized_products'],
-        )(arg)
+            arg = self.make_layer_inputs(last_x, last)
+            last = self.Attention(
+                self.make_scorefun(),
+                self.make_valuefun(self.n_dim),
+                False,
+                rank=self.rank,
+                join_fun=self.join_fun,
+                merge_fun=self.merge_fun,
+                invariant_mode=self.invar_mode,
+                covariant_mode=self.covar_mode,
+                include_normalized_products=self.arguments[
+                    'include_normalized_products'
+                ],
+            )(arg)
 
         if self.block_nonlin:
             last = self.make_valuefun(self.n_dim, in_network=False)(last)
