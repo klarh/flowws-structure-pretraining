@@ -212,6 +212,7 @@ class GalaCore(flowws.Stage):
             False,
             help='If True, use convex combinations of covariant values',
         ),
+        Arg('mlp_layers', None, int, 1, help='Number of hidden layers to use in MLPs'),
     ]
 
     def _init(self, scope, storage):
@@ -339,13 +340,16 @@ class GalaCore(flowws.Stage):
             return self.rank * [nonnorm]
 
     def make_scorefun(self):
-        layers = [keras.layers.Dense(self.dilation_dim)]
+        layers = []
 
-        layers.extend(self.normalization_getter('score'))
+        for _ in range(self.arguments['mlp_layers']):
+            layers.append(keras.layers.Dense(self.dilation_dim))
 
-        layers.append(self.activation_layer())
-        if self.dropout:
-            layers.append(self.DropoutLayer(self.dropout))
+            layers.extend(self.normalization_getter('score'))
+
+            layers.append(self.activation_layer())
+            if self.dropout:
+                layers.append(self.DropoutLayer(self.dropout))
 
         layers.append(keras.layers.Dense(1))
         return keras.models.Sequential(layers)
@@ -360,12 +364,13 @@ class GalaCore(flowws.Stage):
                 layers.append(keras.layers.Dense(dim))
                 return keras.models.Sequential(layers)
 
-        layers.append(keras.layers.Dense(self.dilation_dim))
-        layers.extend(self.normalization_getter('value'))
+        for _ in range(self.arguments['mlp_layers']):
+            layers.append(keras.layers.Dense(self.dilation_dim))
+            layers.extend(self.normalization_getter('value'))
 
-        layers.append(self.activation_layer())
-        if self.dropout:
-            layers.append(self.DropoutLayer(self.dropout))
+            layers.append(self.activation_layer())
+            if self.dropout:
+                layers.append(self.DropoutLayer(self.dropout))
 
         layers.append(keras.layers.Dense(dim))
         return keras.models.Sequential(layers)
