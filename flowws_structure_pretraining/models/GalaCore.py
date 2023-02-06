@@ -11,6 +11,7 @@ from tensorflow import keras
 
 
 LAMBDA_ACTIVATIONS = {
+    'gaussian': lambda x: tf.math.exp(-tf.square(x)),
     'leakyswish': lambda x: tf.nn.swish(x) - 1e-2 * tf.nn.swish(-x),
     'log1pswish': lambda x: tf.math.log1p(tf.nn.swish(x)),
     'sin': tf.sin,
@@ -206,6 +207,20 @@ class GalaCore(flowws.Stage):
             help='Use a learned rotation-invariant embedding for the scale-equivariant factor',
         ),
         Arg(
+            'direct_scale_equivariant_embedding',
+            None,
+            bool,
+            False,
+            help='Use non-reciprocal distance embedding for the scale-equivariant factor',
+        ),
+        Arg(
+            'gaussian_scale_equivariant_embedding',
+            None,
+            bool,
+            False,
+            help='Use Gaussian distance embedding for the scale-equivariant factor',
+        ),
+        Arg(
             'convex_covariants',
             None,
             bool,
@@ -298,9 +313,19 @@ class GalaCore(flowws.Stage):
                 scope['equivariant_rescale_factor'] = rescale[..., None]
 
                 if self.arguments.get('scale_equivariant_embedding', None):
+                    embedding_scale = rescale
+                    if (
+                        self.arguments['direct_scale_equivariant_embedding']
+                        or self.arguments['gaussian_scale_equivariant_embedding']
+                    ):
+                        embedding_scale = tf.math.reciprocal(embedding_scale)
                     embedding = keras.layers.Dense(
                         self.n_dim, name='distance_embedding'
-                    )(rescale)
+                    )(embedding_scale)
+                    if self.arguments['gaussian_scale_equivariant_embedding']:
+                        embedding = keras.layers.Lambda(LAMBDA_ACTIVATIONS['gaussian'])(
+                            embedding
+                        )
                     last = last + embedding
             elif distance_norm in ('mean', 'min'):
                 last_x = NeighborDistanceNormalization(distance_norm)(last_x)
