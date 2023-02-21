@@ -290,6 +290,7 @@ class GalaCore(flowws.Stage):
 
         type_dim = scope.get('max_types', 1)
         type_dim *= 1 if scope.get('per_molecule', False) else 2
+        type_dim = scope.get('type_embedding_size', type_dim)
 
         if 'encoded_base' in scope:
             (last_x, last) = scope['encoded_base']
