@@ -9,7 +9,7 @@ from tensorflow import keras
 class GalaScalarRegressor(GalaCore):
     """Regress one scalar for a given environment using geometric algebra attention"""
 
-    ARGS = [
+    ARGS = GalaCore.ARGS + [
         Arg(
             'drop_geometric_embeddings',
             None,
@@ -46,8 +46,8 @@ class GalaScalarRegressor(GalaCore):
         else:
             arg = self.make_layer_inputs(last_x, last)
         (last, ivs, att) = self.Attention(
-            make_scorefun(),
-            make_valuefun(self.n_dim),
+            self.make_scorefun(),
+            self.make_valuefun(self.n_dim),
             True,
             name='final_attention',
             rank=self.rank,
