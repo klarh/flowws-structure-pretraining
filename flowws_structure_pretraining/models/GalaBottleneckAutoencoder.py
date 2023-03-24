@@ -56,6 +56,7 @@ def stack_vector_layers(
     invar_mode='full',
     covar_mode='full',
     include_normalized_products=False,
+    convex_covariants=False,
 ):
     pieces = []
     for _ in range(n_vectors):
@@ -70,6 +71,7 @@ def stack_vector_layers(
             merge_fun=merge_fun,
             join_fun=join_fun,
             rank=rank,
+            convex_covariants=convex_covariants,
         )
         piece = layer([r, v])
         piece = keras.layers.Lambda(expand_neighborhood_dim)(piece)
