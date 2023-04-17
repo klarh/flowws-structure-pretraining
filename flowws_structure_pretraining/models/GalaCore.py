@@ -235,6 +235,20 @@ class GalaCore(flowws.Stage):
             False,
             help='If True, use tied attention weights',
         ),
+        Arg(
+            'linear_terms',
+            '-l',
+            int,
+            0,
+            help='Number of non-product, linear terms to include in each layer',
+        ),
+        Arg(
+            'linear_mode',
+            None,
+            str,
+            'full',
+            help='Generation mode (partial/full) for linear term combinations',
+        ),
     ]
 
     def _init(self, scope, storage):
@@ -430,6 +444,8 @@ class GalaCore(flowws.Stage):
                     'include_normalized_products'
                 ],
                 convex_covariants=self.arguments['convex_covariants'],
+                linear_mode=self.arguments['linear_mode'],
+                linear_terms=self.arguments['linear_terms'],
             )(arg)
         else:
             if self.arguments['use_multivectors']:
@@ -448,6 +464,8 @@ class GalaCore(flowws.Stage):
                         'include_normalized_products'
                     ],
                     convex_covariants=self.arguments['convex_covariants'],
+                    linear_mode=self.arguments['linear_mode'],
+                    linear_terms=self.arguments['linear_terms'],
                 )(arg)
 
             arg = self.make_layer_inputs(last_x, last)
@@ -463,6 +481,8 @@ class GalaCore(flowws.Stage):
                 include_normalized_products=self.arguments[
                     'include_normalized_products'
                 ],
+                linear_mode=self.arguments['linear_mode'],
+                linear_terms=self.arguments['linear_terms'],
             )(arg)
 
         if self.block_nonlin:
@@ -495,6 +515,8 @@ class GalaCore(flowws.Stage):
             covariant_mode=self.covar_mode,
             include_normalized_products=self.arguments['include_normalized_products'],
             convex_covariants=self.arguments['convex_covariants'],
+            linear_mode=self.arguments['linear_mode'],
+            linear_terms=self.arguments['linear_terms'],
         )([rs, vs])
 
         if self.residual:
