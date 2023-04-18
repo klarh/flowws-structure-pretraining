@@ -83,6 +83,7 @@ module_names = [
     'NearBondTask',
     'NearestBondTask',
     'NoisyBondTask',
+    'PointGroupTask',
     'ShiftIdentificationTask',
 ]
 add_subpkg(subpkg, module_names)

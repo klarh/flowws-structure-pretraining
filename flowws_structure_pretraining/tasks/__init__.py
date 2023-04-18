@@ -5,4 +5,5 @@ from .FrameRegressionTask import FrameRegressionTask
 from .NearBondTask import NearBondTask
 from .NearestBondTask import NearestBondTask
 from .NoisyBondTask import NoisyBondTask
+from .PointGroupTask import PointGroupTask
 from .ShiftIdentificationTask import ShiftIdentificationTask
