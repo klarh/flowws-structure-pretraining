@@ -85,6 +85,7 @@ module_names = [
     'GEOMRegressionTask',
     'NearestBondTask',
     'NoisyBondTask',
+    'PropertyNoisyBondTask',
     'ShiftIdentificationTask',
 ]
 add_subpkg(subpkg, module_names)
