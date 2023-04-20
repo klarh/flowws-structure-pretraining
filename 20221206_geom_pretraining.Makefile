@@ -15,7 +15,7 @@ else ifeq ($(NEIGHBOR_MODE),rdfdist2)
 	NEIGHBOR_CALC:=DistanceNeighbors --rdf-shells 2 --max-neighbors 64
 else ifeq ($(NEIGHBOR_MODE),nearest)
 	NEIGHBOR_COUNT:=20
-	NEIGHBOR_CALC:=NearestNeighbors -n ${NEIGHBOR_COUNT}
+	NEIGHBOR_CALC:=NearestNeighbors --neighbor-count ${NEIGHBOR_COUNT}
 endif
 
 PYTHON:=python
@@ -61,7 +61,7 @@ GEOM_ALL_FRAMES:=GEOMLoader -d /scratch/ssd002/datasets/GEOM/extracted_geom/
 
 # tasks
 NOISY_BOND:=NoisyBondTask -n .5 --seed ${SEED}
-PROPERTY_NOISY_BOND:=PropertyNoisyBondTask -n 0.1 --seed ${SEED}
+PROPERTY_NOISY_BOND:=PropertyNoisyBondTask --noise-magnitude 0.1 --seed ${SEED}
 NEAREST_BOND:=NearestBondTask --seed ${SEED}
 AUTOENCODER:=AutoencoderTask --seed ${SEED}
 DENOISING:=DenoisingTask --noise ${DENOISING_NOISE} --seed ${SEED} --register 1
@@ -72,18 +72,22 @@ GEOM_REGRESSION:=GEOMRegressionTask --seed ${SEED}
 #GEOM_REGRESSION:=GalaPotentialRegressor --predict-energy 0 --predict-forces 1 --seed ${SEED}
 
 # models
-NOISY_BOND_ARCH:=GalaBondClassifier --num-blocks ${DEPTH} --n-dim ${WIDTH} --use-multivectors 1 --invar-mode full --covar-mode full --dropout .5 --equivariant-value-normalization momentum_layer --include-normalized-products 1 --normalize-equivariant-values 1 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
+#NOISY_BOND_ARCH:=GalaBondClassifier --num-blocks ${DEPTH} --n-dim ${WIDTH} --use-multivectors 1 --invar-mode full --covar-mode full --dropout .5 --equivariant-value-normalization momentum_layer --include-normalized-products 1 --normalize-equivariant-values 1 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
+NOISY_BOND_ARCH:=GalaBondClassifier --num-blocks ${DEPTH} --n-dim ${WIDTH} --use-multivectors 1 --invar-mode full --covar-mode full --dropout .5 --equivariant-value-normalization momentum_layer --include-normalized-products 0 --normalize-equivariant-values 1 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
 NEAREST_BOND_ARCH:=GalaBondRegressor --num-blocks ${DEPTH} --n-dim ${WIDTH} --use-multivectors 1 --invar-mode full --covar-mode full --drop-geometric-embeddings 1 --dropout 1e-1 --equivariant-value-normalization none --include-normalized-products 1 --normalize-equivariant-values 1 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
 AUTOENCODER_ARCH:=GalaBottleneckAutoencoder --num-blocks ${DEPTH} --n-dim ${WIDTH} --num-vector-blocks 0 --use-multivectors 1 --cross-attention 0 --invar-mode full --covar-mode full --vae-scale ${VAE_SCALE} --dropout 1e-1 --equivariant-value-normalization none --include-normalized-products 1 --normalize-equivariant-values 1 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
 DENOISING_ARCH:=GalaVectorAutoencoder --num-blocks ${DEPTH} --n-dim ${WIDTH} --num-vector-blocks 0 --dropout 1e-1 --use-multivectors 1 --invar-mode full --covar-mode full --drop-geometric-embeddings 1 --equivariant-value-normalization none --include-normalized-products 1 --normalize-equivariant-values 1 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
 SHIFT_ID_ARCH:=GalaBondRegressor --num-blocks ${DEPTH} --n-dim ${WIDTH} --use-multivectors 1 --invar-mode full --covar-mode full --drop-geometric-embeddings 1 --dropout 1e-1 --equivariant-value-normalization none --include-normalized-products 1 --normalize-equivariant-values 1 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
 FRAME_CLASSIFICATION_ARCH:=GalaBondClassifier --num-blocks ${DEPTH} --n-dim ${WIDTH} --use-multivectors 1 --invar-mode full --covar-mode full --merge-fun concat --join-fun concat --dropout .5 --equivariant-value-normalization momentum_layer --include-normalized-products 1 --normalize-equivariant-values 1 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
 FRAME_REGRESSION_ARCH:=GalaScalarRegressor --num-blocks ${DEPTH} --n-dim ${WIDTH} --use-multivectors 1 --invar-mode full --covar-mode full --dropout .1 --equivariant-value-normalization momentum_layer --include-normalized-products 1 --normalize-equivariant-values 1 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
-GEOM_REGRESSION_ARCH:=GalaPotentialRegressor --predict-energy 1 --predict-forces 0 --num-blocks ${DEPTH} --n-dim ${WIDTH} --use-multivectors 1 --invar-mode full --covar-mode full --dropout .1 --equivariant-value-normalization momentum_layer --include-normalized-products 1 --normalize-equivariant-values 1 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
+GEOM_REGRESSION_ARCH:=GalaPotentialRegressor --predict-energy 1 --predict-forces 0 --num-blocks ${DEPTH} --n-dim ${WIDTH} --use-multivectors 1 --invar-mode full --covar-mode full --dropout 0 --include-normalized-products 0 --normalize-equivariant-values 0 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
+#GEOM_REGRESSION_ARCH:=GalaPotentialRegressor --predict-energy 1 --predict-forces 0 --num-blocks ${DEPTH} --n-dim ${WIDTH} --use-multivectors 1 --invar-mode full --covar-mode full --dropout .1 --equivariant-value-normalization momentum_layer --include-normalized-products 0 --normalize-equivariant-values 1 --normalize-distances ${NET_DISTANCE_NORMALIZATION}
 
 # training
-GENERATOR_TRAIN:=flowws_keras_experimental.Train --epochs ${EPOCHS} --generator-train-steps 2048 --generator-val-steps 512 --use-multiprocessing False --catch-keyboard-interrupt 1 --reduce-lr 4 --early-stopping 10 --early-stopping-best 1 --recompile 1 --accumulate-gradients 8 --seed ${SEED} ${EXTRA_TRAIN_ARGS}
-STATIC_TRAIN:=flowws_keras_experimental.Train --epochs ${EPOCHS} --validation-split ${VAL_SPLIT} --batch-size 4 --use-multiprocessing False --catch-keyboard-interrupt 1 --reduce-lr 1 --early-stopping 2 --early-stopping-best 1 --recompile 1 --accumulate-gradients 8 --seed ${SEED} ${EXTRA_TRAIN_ARGS}
+#GENERATOR_TRAIN:=flowws_keras_experimental.Train --epochs ${EPOCHS} --generator-train-steps 2048 --generator-val-steps 512 --use-multiprocessing False --catch-keyboard-interrupt 1 --reduce-lr 4 --early-stopping 10 --early-stopping-best 1 --recompile 1 --accumulate-gradients 8 --seed ${SEED} ${EXTRA_TRAIN_ARGS}
+GENERATOR_TRAIN:=flowws_keras_experimental.Train --epochs 50 --generator-train-steps 2048 --generator-val-steps 512 --use-multiprocessing False --catch-keyboard-interrupt 1 --reduce-lr 50 --early-stopping 50 --early-stopping-best 1 --recompile 1  --seed ${SEED} ${EXTRA_TRAIN_ARGS}
+#STATIC_TRAIN:=flowws_keras_experimental.Train --epochs ${EPOCHS} --validation-split ${VAL_SPLIT} --batch-size 4 --use-multiprocessing False --catch-keyboard-interrupt 1 --reduce-lr 1 --early-stopping 2 --early-stopping-best 1 --recompile 1 --accumulate-gradients 8 --seed ${SEED} ${EXTRA_TRAIN_ARGS}
+STATIC_TRAIN:=flowws_keras_experimental.Train --epochs 10000 --validation-split ${VAL_SPLIT} --batch-size 4 --use-multiprocessing False --catch-keyboard-interrupt 1 --reduce-lr 2500 --early-stopping 2500 --early-stopping-best 1 --recompile 1  --seed ${SEED} ${EXTRA_TRAIN_ARGS}
 
 NOISY_BOND_TRAIN:=${GENERATOR_TRAIN}
 NEAREST_BOND_TRAIN:=${STATIC_TRAIN}
@@ -102,7 +106,7 @@ all_final_frames: dump.noisy_bond.final_frames.sqlite dump.nearest_bond.final_fr
 
 dump.noisy_bond.final_frames.sqlite:
 	${PYTHON} -m flowws.run \
-		InitializeTF ${INITIPropertyNoisyBondTask ALIZETF_EXTRA_ARGS} \
+		InitializeTF ${INITIALIZETF_EXTRA_ARGS} \
 		${FINAL_FRAMES} \
 		${NEIGHBOR_CALC} \
 		NormalizeNeighborDistance --mode min \
@@ -428,7 +432,7 @@ dump.property_noisy_bond.geom_all_frames.sqlite:
 		${GEOM_ALL_FRAMES} \
 		${NEIGHBOR_CALC} \
 		${PROPERTY_NOISY_BOND} ${NOISY_BOND_ARCH} ${NOISY_BOND_TRAIN} \
-		flowws_keras_experimental.Save --save-model 1 -f noisy_bond pyriodic_all_frames
+		flowws_keras_experimental.Save --save-model 1 -f noisy_bond geom_all_frames_random_50e
 
 dump.nearest_bond.pyriodic_all_frames.sqlite:
 	${PYTHON} -m flowws.run \
@@ -479,7 +483,8 @@ dump.frame_regression.geom_all_frames.sqlite:
 		${GEOM_ALL_FRAMES} -v ${VAL_SPLIT} \
 	    ${NEIGHBOR_CALC} \
 		${GEOM_REGRESSION} ${GEOM_REGRESSION_ARCH} ${GEOM_REGRESSION_TRAIN} --shuffle False \
-		flowws_keras_experimental.Save --save-model 1 -f frame_regression geom_all_frames
+		flowws_keras_experimental.Save --save-model 1 -f frame_regression geom_all_frames_pretrain_md17_200e
+
 
 output.EmbeddingPlotter.structure_frames_with_iQc.%.pca.pdf: %
 	${PYTHON} -m flowws.run \

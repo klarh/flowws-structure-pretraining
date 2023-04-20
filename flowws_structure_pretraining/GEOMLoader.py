@@ -18,6 +18,12 @@ TARGET_SMILES=set(["C1=CC=C2C=CC=CC2=C1",
         "C(C=O)C=O",
         "CCO",
         "CC1=CC=CC=C1"])
+TARGET_SMILES=["c1ccccc1",
+"CC(=O)Oc1ccccc1C(=O)O",
+"O=c1cc[nH]c(=O)[nH]1",
+"Oc1ccnc(O)n1",
+"CCO",
+"O=C(O)c1ccccc1O"]
 print(TARGET_SMILES)
 
 def process_iter():
@@ -26,7 +32,7 @@ def process_iter():
 
     direc='/scratch/ssd002/datasets/GEOM/'
     drugs_file = os.path.join(direc, 'drugs_crude.msgpack')
-    drugs_file = os.path.join(direc, 'qm9_crude.msgpack')
+    #drugs_file = os.path.join(direc, 'qm9_crude.msgpack')
     unpacker = msgpack.Unpacker(open(drugs_file, 'rb')) # iterator for 292 dictionaries, each containing ~1000 molecules
 
     full_list = {}
@@ -34,9 +40,12 @@ def process_iter():
     max_types=0
     for ii, group in tqdm(enumerate(iter(unpacker))):
         #full_list = []
-        if ii >= 5: break
+        #if ii >= 1: break
         smiles = list(group.keys())
         for smile in smiles:
+            if smile not in TARGET_SMILES: continue
+            print("found smiles ", smile)
+
             conformer_dict = group[smile]
             conformers = conformer_dict['conformers']
             conformer_list = []
@@ -139,8 +148,10 @@ class GEOMLoader(flowws.Stage):
         print("Done loading files!")
         np.random.seed(42)
         np.random.shuffle(smiles_list)
-        val_smiles = smiles_list[:int(len(smiles_list)*self.arguments['validation_split'])]
-        train_smiles = smiles_list[int(len(smiles_list)*self.arguments['validation_split']):]
+        #val_smiles = smiles_list[:int(len(smiles_list)*self.arguments['validation_split'])]
+        #train_smiles = smiles_list[int(len(smiles_list)*self.arguments['validation_split']):]
+        val_smiles = smiles_list
+        train_smiles = smiles_list
         print(f"{len(train_smiles)} molecules in train set")
         print(f"{len(val_smiles)} molecules in val set")
         print(f"{len(smiles_list)} total molecules")
