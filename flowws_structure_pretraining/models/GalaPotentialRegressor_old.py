@@ -1,4 +1,4 @@
-from .internal import GradientLayer, NeighborhoodReduction, ScaledMSELoss, SumLayer
+from .internal import GradientLayer, NeighborhoodReduction, SumLayer
 from .GalaCore import GalaCore
 
 import flowws
@@ -40,24 +40,9 @@ class GalaPotentialRegressor(GalaCore):
             False,
             help='If True, produce forces and use force labels',
         ),
-        Arg(
-            'forces_first',
-            None,
-            bool,
-            False,
-            help='If True, output forces first instead of energies',
-        ),
-        Arg(
-            'loss_mixing_beta',
-            None,
-            float,
-            1.0,
-            help='MSE loss contribution for second set of predicted quantities',
-        ),
     ]
 
     def run(self, scope, storage):
-        self._init(scope, storage)
         if 'encoded_base' not in scope:
             super().run(scope, storage)
 
@@ -92,29 +77,22 @@ class GalaPotentialRegressor(GalaCore):
         last = keras.layers.Dense(self.dilation_dim, name='final_mlp')(last)
         last = self.activation_layer()(last)
         last = keras.layers.Dense(1, name='energy_projection', use_bias=False)(last)
-        if scope.get('per_molecule', False):
-            energy_prediction = last = NeighborhoodReduction('sum', name='energy')(last)
+       # if scope.get('per_molecule', False):
+        energy_prediction = last = NeighborhoodReduction('sum')(last)
         total_sum = SumLayer()(last)
-        force_prediction = GradientLayer(name='force')((total_sum, inputs[0]))[0]
+        force_prediction = GradientLayer()((total_sum, inputs[0]))
 
         outputs = []
         if self.arguments['predict_energy']:
             outputs.append(energy_prediction)
         if self.arguments['predict_forces']:
             outputs.append(force_prediction)
-        num_outputs = len(outputs)
-        if num_outputs == 1:
+        if len(outputs) == 1:
             outputs = outputs[0]
-        elif num_outputs == 2 and self.arguments['forces_first']:
-            outputs = outputs[::-1]
         elif not outputs:
             raise ValueError('No outputs to predict!')
 
-        loss = 'mse'
-        if num_outputs == 2:
-            loss = ['mse', ScaledMSELoss(self.arguments['loss_mixing_beta'])]
-
-        scope['loss'] = loss
+        scope['loss'] = 'mse'
         scope['input_symbol'] = inputs
         scope['output'] = outputs
         scope['model'] = keras.models.Model(inputs, scope['output'])

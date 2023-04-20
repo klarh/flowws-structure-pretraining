@@ -34,7 +34,6 @@ class GalaVectorAutoencoder(GalaCore):
     ]
 
     def run(self, scope, storage):
-        self._init(scope, storage)
         if 'encoded_base' not in scope:
             super().run(scope, storage)
 
@@ -56,9 +55,6 @@ class GalaVectorAutoencoder(GalaCore):
             last_x = self.make_vector_block(last_x, last)
 
         last_x = self.maybe_downcast_vector(last_x)
-
-        if 'equivariant_rescale_factor' in scope:
-            last_x = last_x / scope['equivariant_rescale_factor']
 
         scope['input_symbol'] = inputs
         scope['output'] = last_x

@@ -1,6 +1,5 @@
 from .internal import NeighborDistanceNormalization, NoiseInjector
 from .internal import PairwiseVectorDifference, PairwiseVectorDifferenceSum
-from .internal import ResidualMaskedLayer, ZeroMaskingLayer
 
 import flowws
 from flowws import Argument as Arg
@@ -11,7 +10,6 @@ from tensorflow import keras
 
 
 LAMBDA_ACTIVATIONS = {
-    'gaussian': lambda x: tf.math.exp(-tf.square(x)),
     'leakyswish': lambda x: tf.nn.swish(x) - 1e-2 * tf.nn.swish(-x),
     'log1pswish': lambda x: tf.math.log1p(tf.nn.swish(x)),
     'sin': tf.sin,
@@ -179,75 +177,20 @@ class GalaCore(flowws.Stage):
             [],
             help='Keyword arguments to pass to normalization functions',
         ),
-        Arg(
-            'linear_invariant_projection',
-            None,
-            bool,
-            False,
-            help='If True, use a simple linear projection for value nets rather than an MLP',
-        ),
-        Arg(
-            'scale_equivariant_factor',
-            None,
-            float,
-            help='If given, normalize input vectors to have length around the given factor',
-        ),
-        Arg(
-            'scale_equivariant_mode',
-            None,
-            str,
-            'mean',
-            help='Summary statistic to use to normalize vectors if scale_equivariant_factor is enabled',
-        ),
-        Arg(
-            'scale_equivariant_embedding',
-            None,
-            bool,
-            False,
-            help='Use a learned rotation-invariant embedding for the scale-equivariant factor',
-        ),
-        Arg(
-            'direct_scale_equivariant_embedding',
-            None,
-            bool,
-            False,
-            help='Use non-reciprocal distance embedding for the scale-equivariant factor',
-        ),
-        Arg(
-            'gaussian_scale_equivariant_embedding',
-            None,
-            bool,
-            False,
-            help='Use Gaussian distance embedding for the scale-equivariant factor',
-        ),
-        Arg(
-            'convex_covariants',
-            None,
-            bool,
-            False,
-            help='If True, use convex combinations of covariant values',
-        ),
-        Arg('mlp_layers', None, int, 1, help='Number of hidden layers to use in MLPs'),
-        Arg(
-            'tied_attention',
-            None,
-            bool,
-            False,
-            help='If True, use tied attention weights',
-        ),
     ]
 
-    def _init(self, scope, storage):
+    def run(self, scope, storage):
         self.use_weights = scope.get('use_bond_weights', False)
         self.n_dim = self.arguments['n_dim']
         dilation = self.arguments['dilation_factor']
-        self.dilation_dim = int(np.round(self.n_dim * dilation))
         self.block_nonlin = self.arguments['block_nonlinearity']
         self.residual = self.arguments['residual']
         self.join_fun = self.arguments['join_fun']
         self.merge_fun = self.arguments['merge_fun']
         self.dropout = self.arguments['dropout']
+        num_blocks = self.arguments['num_blocks']
         self.rank = self.arguments['rank']
+        distance_norm = self.arguments['normalize_distances']
         self.invar_mode = self.arguments['invar_mode']
         self.covar_mode = self.arguments['covar_mode']
         self.DropoutLayer = scope.get('dropout_class', keras.layers.Dropout)
@@ -263,14 +206,12 @@ class GalaCore(flowws.Stage):
             self.Attention = gala.MultivectorAttention
             self.AttentionVector = gala.Multivector2MultivectorAttention
             self.AttentionLabeled = gala.LabeledMultivectorAttention
-            self.AttentionTied = gala.TiedMultivectorAttention
             self.maybe_upcast_vector = gala.Vector2Multivector()
             self.maybe_downcast_vector = gala.Multivector2Vector()
         else:
             self.Attention = gala.VectorAttention
             self.AttentionVector = gala.Vector2VectorAttention
             self.AttentionLabeled = gala.LabeledVectorAttention
-            self.AttentionTied = gala.TiedVectorAttention
             self.maybe_upcast_vector = lambda x: x
             self.maybe_downcast_vector = lambda x: x
 
@@ -283,14 +224,9 @@ class GalaCore(flowws.Stage):
                 self.arguments['activation']
             )
 
-    def run(self, scope, storage):
-        self._init(scope, storage)
-        distance_norm = self.arguments['normalize_distances']
-        num_blocks = self.arguments['num_blocks']
-
         type_dim = scope.get('max_types', 1)
         type_dim *= 1 if scope.get('per_molecule', False) else 2
-        type_dim = scope.get('type_embedding_size', type_dim)
+        self.dilation_dim = int(np.round(self.n_dim * dilation))
 
         if 'encoded_base' in scope:
             (last_x, last) = scope['encoded_base']
@@ -309,45 +245,21 @@ class GalaCore(flowws.Stage):
                 w_in = keras.layers.Input((None,), name='wij')
                 inputs = [x_in, v_in, w_in]
 
-            (last_x, last) = self.maybe_expand_molecule(scope, x_in, v_in)
-            last_x = ZeroMaskingLayer()(last_x)
-            last = keras.layers.Dense(self.n_dim, name='type_embedding')(last)
-
-            scope.pop('equivariant_rescale_factor', None)
-            if self.arguments.get('scale_equivariant_factor', None):
-                scale = self.arguments['scale_equivariant_factor']
-                norm_mode = self.arguments['scale_equivariant_mode']
-                last_x, rescale = NeighborDistanceNormalization(norm_mode, scale, True)(
-                    last_x
-                )
-                scope['equivariant_rescale_factor'] = rescale[..., None]
-
-                if self.arguments.get('scale_equivariant_embedding', None):
-                    embedding_scale = rescale
-                    if (
-                        self.arguments['direct_scale_equivariant_embedding']
-                        or self.arguments['gaussian_scale_equivariant_embedding']
-                    ):
-                        embedding_scale = tf.math.reciprocal(embedding_scale)
-                    embedding = keras.layers.Dense(
-                        self.n_dim, name='distance_embedding'
-                    )(embedding_scale)
-                    if self.arguments['gaussian_scale_equivariant_embedding']:
-                        embedding = keras.layers.Lambda(LAMBDA_ACTIVATIONS['gaussian'])(
-                            embedding
-                        )
-                    last = last + embedding
-            elif distance_norm in ('mean', 'min'):
+            last_x = x_in
+            if distance_norm in ('mean', 'min'):
                 last_x = NeighborDistanceNormalization(distance_norm)(last_x)
             elif distance_norm == 'none':
                 pass
             elif distance_norm:
                 raise NotImplementedError(distance_norm)
 
+            (last_x, last) = self.maybe_expand_molecule(scope, last_x, v_in)
+
             if self.arguments['inject_noise']:
                 last_x = NoiseInjector(self.arguments['inject_noise'])(last_x)
 
             last_x = self.maybe_upcast_vector(last_x)
+            last = keras.layers.Dense(self.n_dim)(last)
             for _ in range(num_blocks):
                 last_x, last = self.make_block(last_x, last)
 
@@ -375,16 +287,13 @@ class GalaCore(flowws.Stage):
             return self.rank * [nonnorm]
 
     def make_scorefun(self):
-        layers = []
+        layers = [keras.layers.Dense(self.dilation_dim)]
 
-        for _ in range(self.arguments['mlp_layers']):
-            layers.append(keras.layers.Dense(self.dilation_dim))
+        layers.extend(self.normalization_getter('score'))
 
-            layers.extend(self.normalization_getter('score'))
-
-            layers.append(self.activation_layer())
-            if self.dropout:
-                layers.append(self.DropoutLayer(self.dropout))
+        layers.append(self.activation_layer())
+        if self.dropout:
+            layers.append(self.DropoutLayer(self.dropout))
 
         layers.append(keras.layers.Dense(1))
         return keras.models.Sequential(layers)
@@ -395,17 +304,12 @@ class GalaCore(flowws.Stage):
         if in_network:
             layers.extend(self.normalization_getter('invariant_value'))
 
-            if self.arguments['linear_invariant_projection']:
-                layers.append(keras.layers.Dense(dim))
-                return keras.models.Sequential(layers)
+        layers.append(keras.layers.Dense(self.dilation_dim))
+        layers.extend(self.normalization_getter('value'))
 
-        for _ in range(self.arguments['mlp_layers']):
-            layers.append(keras.layers.Dense(self.dilation_dim))
-            layers.extend(self.normalization_getter('value'))
-
-            layers.append(self.activation_layer())
-            if self.dropout:
-                layers.append(self.DropoutLayer(self.dropout))
+        layers.append(self.activation_layer())
+        if self.dropout:
+            layers.append(self.DropoutLayer(self.dropout))
 
         layers.append(keras.layers.Dense(dim))
         return keras.models.Sequential(layers)
@@ -413,10 +317,9 @@ class GalaCore(flowws.Stage):
     def make_block(self, last_x, last):
         residual_in_x = last_x
         residual_in = last
-
-        if self.arguments['tied_attention']:
+        if self.arguments['use_multivectors']:
             arg = self.make_layer_inputs(last_x, last)
-            (last_x, last) = self.AttentionTied(
+            last_x = self.AttentionVector(
                 self.make_scorefun(),
                 self.make_valuefun(self.n_dim),
                 self.make_valuefun(1),
@@ -429,53 +332,32 @@ class GalaCore(flowws.Stage):
                 include_normalized_products=self.arguments[
                     'include_normalized_products'
                 ],
-                convex_covariants=self.arguments['convex_covariants'],
             )(arg)
-        else:
-            if self.arguments['use_multivectors']:
-                arg = self.make_layer_inputs(last_x, last)
-                last_x = self.AttentionVector(
-                    self.make_scorefun(),
-                    self.make_valuefun(self.n_dim),
-                    self.make_valuefun(1),
-                    False,
-                    rank=self.rank,
-                    join_fun=self.join_fun,
-                    merge_fun=self.merge_fun,
-                    invariant_mode=self.invar_mode,
-                    covariant_mode=self.covar_mode,
-                    include_normalized_products=self.arguments[
-                        'include_normalized_products'
-                    ],
-                    convex_covariants=self.arguments['convex_covariants'],
-                )(arg)
 
-            arg = self.make_layer_inputs(last_x, last)
-            last = self.Attention(
-                self.make_scorefun(),
-                self.make_valuefun(self.n_dim),
-                False,
-                rank=self.rank,
-                join_fun=self.join_fun,
-                merge_fun=self.merge_fun,
-                invariant_mode=self.invar_mode,
-                covariant_mode=self.covar_mode,
-                include_normalized_products=self.arguments[
-                    'include_normalized_products'
-                ],
-            )(arg)
+        arg = self.make_layer_inputs(last_x, last)
+        last = self.Attention(
+            self.make_scorefun(),
+            self.make_valuefun(self.n_dim),
+            False,
+            rank=self.rank,
+            join_fun=self.join_fun,
+            merge_fun=self.merge_fun,
+            invariant_mode=self.invar_mode,
+            covariant_mode=self.covar_mode,
+            include_normalized_products=self.arguments['include_normalized_products'],
+        )(arg)
 
         if self.block_nonlin:
             last = self.make_valuefun(self.n_dim, in_network=False)(last)
 
         if self.residual:
-            last = ResidualMaskedLayer()((last, residual_in))
+            last = last + residual_in
 
         for layer in self.normalization_getter('block'):
             last = layer(last)
 
         if self.arguments['use_multivectors']:
-            last_x = ResidualMaskedLayer()((residual_in_x, last_x))
+            last_x = residual_in_x + last_x
             for layer in self.normalization_getter('equivariant_value'):
                 last_x = layer(last_x)
 
@@ -490,11 +372,10 @@ class GalaCore(flowws.Stage):
             False,
             rank=self.rank,
             join_fun=self.join_fun,
-            merge_fun=self.merge_fun,
             invariant_mode=self.invar_mode,
             covariant_mode=self.covar_mode,
             include_normalized_products=self.arguments['include_normalized_products'],
-            convex_covariants=self.arguments['convex_covariants'],
+            merge_fun=self.merge_fun,
         )([rs, vs])
 
         if self.residual:

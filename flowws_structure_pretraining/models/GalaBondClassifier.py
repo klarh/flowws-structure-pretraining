@@ -28,6 +28,7 @@ class GalaBondClassifier(GalaCore):
     def run(self, scope, storage):
         num_classes = scope.get('num_classes', 2)
 
+        self._init(scope, storage)
         if 'encoded_base' not in scope:
             super().run(scope, storage)
 
@@ -59,13 +60,18 @@ class GalaBondClassifier(GalaCore):
             last = keras.layers.Dense(self.arguments['embedding_dimension'])(last)
             embedding = last
 
-        last = keras.layers.Dense(num_classes)(last)
         if scope.get('multilabel', False):
-            # sigmoid + binary crossentropy
-            last = keras.layers.Activation('sigmoid')(last)
+            if scope.get('multilabel_softmax', False):
+                # softmax + categorical crossentropy
+                last = keras.layers.Dense(2 * num_classes)(last)
+                last = keras.layers.Reshape((num_classes, 2))(last)
+                last = keras.layers.Activation('softmax')(last)
+            else:
+                # sigmoid + binary crossentropy
+                last = keras.layers.Dense(num_classes, activation='sigmoid')(last)
         else:
             # softmax + categorical crossentropy
-            last = keras.layers.Activation('softmax')(last)
+            last = keras.layers.Dense(num_classes, activation='softmax')(last)
 
         if 'l1_activity_regularization' in self.arguments:
             last = keras.layers.ActivityRegularization(

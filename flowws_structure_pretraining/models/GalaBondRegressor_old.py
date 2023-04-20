@@ -6,17 +6,10 @@ from tensorflow import keras
 
 
 @flowws.add_stage_arguments
-class GalaVectorAutoencoder(GalaCore):
-    """Reproduce input point clouds"""
+class GalaBondRegressor(GalaCore):
+    """Regress one bond for a given environment using geometric algebra attention"""
 
     ARGS = GalaCore.ARGS + [
-        Arg(
-            'num_vector_blocks',
-            None,
-            int,
-            1,
-            help='Number of vector-valued blocks to use',
-        ),
         Arg(
             'drop_geometric_embeddings',
             None,
@@ -34,7 +27,6 @@ class GalaVectorAutoencoder(GalaCore):
     ]
 
     def run(self, scope, storage):
-        self._init(scope, storage)
         if 'encoded_base' not in scope:
             super().run(scope, storage)
 
@@ -51,14 +43,20 @@ class GalaVectorAutoencoder(GalaCore):
             arg[0] = self.maybe_upcast_vector(scope['input_symbol'][0])
         else:
             arg = self.make_layer_inputs(last_x, last)
-
-        for _ in range(self.arguments['num_vector_blocks']):
-            last_x = self.make_vector_block(last_x, last)
-
+        (last_x, ivs, att) = self.AttentionVector(
+            self.make_scorefun(),
+            self.make_valuefun(self.n_dim),
+            self.make_valuefun(1),
+            True,
+            name='final_attention',
+            rank=self.rank,
+            join_fun=self.join_fun,
+            merge_fun=self.merge_fun,
+            invariant_mode=self.invar_mode,
+            covariant_mode=self.covar_mode,
+            include_normalized_products=self.arguments['include_normalized_products'],
+        )(arg, return_invariants=True, return_attention=True)
         last_x = self.maybe_downcast_vector(last_x)
-
-        if 'equivariant_rescale_factor' in scope:
-            last_x = last_x / scope['equivariant_rescale_factor']
 
         scope['input_symbol'] = inputs
         scope['output'] = last_x

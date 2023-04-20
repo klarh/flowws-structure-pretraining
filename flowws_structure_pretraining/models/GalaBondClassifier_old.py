@@ -6,16 +6,15 @@ from tensorflow import keras
 
 
 @flowws.add_stage_arguments
-class GalaScalarRegressor(GalaCore):
-    """Regress one scalar for a given environment using geometric algebra attention"""
+class GalaBondClassifier(GalaCore):
+    """Classify bonds using geometric algebra attention"""
 
     ARGS = GalaCore.ARGS + [
         Arg(
-            'drop_geometric_embeddings',
+            'l1_activity_regularization',
             None,
-            bool,
-            False,
-            help='If True, use vector inputs rather than geometric accumulations around the embedding layer',
+            float,
+            help='L1 activity regularization of outputs',
         ),
         Arg(
             'transfer_freeze',
@@ -27,12 +26,12 @@ class GalaScalarRegressor(GalaCore):
     ]
 
     def run(self, scope, storage):
-        self._init(scope, storage)
+        num_classes = scope.get('num_classes', 2)
+
         if 'encoded_base' not in scope:
             super().run(scope, storage)
 
         (last_x, last) = scope['encoded_base']
-        embedding = last
         inputs = scope['input_symbol']
 
         if self.arguments['transfer_freeze']:
@@ -40,15 +39,11 @@ class GalaScalarRegressor(GalaCore):
             frozen_model.trainable = False
             (last_x, last) = frozen_model(inputs)
 
-        if self.arguments['drop_geometric_embeddings']:
-            arg = [last_x, last]
-            arg[0] = self.maybe_upcast_vector(scope['input_symbol'][0])
-        else:
-            arg = self.make_layer_inputs(last_x, last)
+        arg = self.make_layer_inputs(last_x, last)
         (last, ivs, att) = self.Attention(
             self.make_scorefun(),
             self.make_valuefun(self.n_dim),
-            True,
+            scope.get('per_cloud', False),
             name='final_attention',
             rank=self.rank,
             join_fun=self.join_fun,
@@ -58,11 +53,26 @@ class GalaScalarRegressor(GalaCore):
             include_normalized_products=self.arguments['include_normalized_products'],
         )(arg, return_invariants=True, return_attention=True)
 
-        last = keras.layers.Dense(1)(last)
+        embedding = last
 
-        embedding_model = keras.models.Model(inputs, embedding)
+        if 'embedding_dimension' in self.arguments:
+            last = keras.layers.Dense(self.arguments['embedding_dimension'])(last)
+            embedding = last
+
+        last = keras.layers.Dense(num_classes)(last)
+        if scope.get('multilabel', False):
+            # sigmoid + binary crossentropy
+            last = keras.layers.Activation('sigmoid')(last)
+        else:
+            # softmax + categorical crossentropy
+            last = keras.layers.Activation('softmax')(last)
+
+        if 'l1_activity_regularization' in self.arguments:
+            last = keras.layers.ActivityRegularization(
+                l1=self.arguments['l1_activity_regularization']
+            )(last)
 
         scope['input_symbol'] = inputs
         scope['output'] = last
         scope['model'] = keras.models.Model(inputs, scope['output'])
-        scope['embedding_model'] = embedding_model
+        scope['embedding_model'] = keras.models.Model(inputs, embedding)

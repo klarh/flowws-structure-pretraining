@@ -2,19 +2,6 @@ import tensorflow as tf
 from tensorflow import keras
 
 
-@tf.custom_gradient
-def custom_norm(x):
-    """Calculate the norm of a set of vector-like quantities, with some
-    numeric stabilization applied to the gradient."""
-    y = tf.linalg.norm(x, axis=-1, keepdims=True)
-
-    def grad(dy):
-        y = custom_norm(x)
-        return dy * (x / tf.maximum(y, 1e-19))
-
-    return y, grad
-
-
 class GradientLayer(keras.layers.Layer):
     """Calculates the gradient of one input with respect to the other."""
 
@@ -23,48 +10,29 @@ class GradientLayer(keras.layers.Layer):
 
 
 class NeighborDistanceNormalization(keras.layers.Layer):
-    def __init__(
-        self, mode='min', lengthscale=1.0, return_scale=False, *args, **kwargs
-    ):
+    def __init__(self, mode='min', *args, **kwargs):
         self.mode = mode
-        self.lengthscale = float(lengthscale)
-        self.return_scale = return_scale
         super().__init__(*args, **kwargs)
 
     def call(self, inputs):
         if self.mode == 'min':
-            distances = custom_norm(inputs)
-            scale = self.lengthscale / tf.maximum(
+            distances = tf.linalg.norm(inputs, axis=-1, keepdims=True)
+            scale = 1.0 / tf.maximum(
                 1e-7, tf.math.reduce_min(distances, axis=-2, keepdims=True)
             )
-        elif self.mode == 'min_nonzero':
-            distances = custom_norm(inputs)
-            filtered = tf.where(distances == 0.0, 1e9, distances)
-            scale = self.lengthscale / tf.maximum(
-                1e-7, tf.math.reduce_min(filtered, axis=-2, keepdims=True)
-            )
         elif self.mode == 'mean':
-            distances = custom_norm(inputs)
-            scale = self.lengthscale / tf.maximum(
+            distances = tf.linalg.norm(inputs, axis=-1, keepdims=True)
+            scale = 1.0 / tf.maximum(
                 1e-7, tf.math.reduce_mean(distances, axis=-2, keepdims=True)
             )
         else:
             raise NotImplementedError()
 
-        if self.return_scale:
-            return inputs * scale, scale
         return inputs * scale
-
-    def compute_mask(self, inputs, mask=None):
-        if self.return_scale:
-            return mask, mask
-        return mask
 
     def get_config(self):
         result = super().get_config()
-        result['lengthscale'] = self.lengthscale
         result['mode'] = self.mode
-        result['return_scale'] = self.return_scale
         return result
 
 
@@ -114,7 +82,6 @@ class NoiseInjector(keras.layers.Layer):
         result['only_during_training'] = self.only_during_training
         return result
 
-
 class PairwiseVectorDifference(keras.layers.Layer):
     """Calculate the difference of all pairs of vectors in the neighborhood axis."""
 
@@ -153,42 +120,6 @@ class PairwiseVectorDifferenceSum(keras.layers.Layer):
         return mask
 
 
-class ResidualMaskedLayer(keras.layers.Layer):
-    def call(self, inputs):
-        left, right = inputs
-        return left + right
-
-    def compute_mask(self, inputs, mask=None):
-        if mask is None:
-            mask = (None, None)
-        (mask_left, mask_right) = mask
-        if mask_left is None:
-            return mask_right
-        elif mask_right is None:
-            return mask_left
-        return tf.math.logical_and(mask_left, mask_right)
-
-
-class ScaledMSELoss(keras.losses.MeanSquaredError):
-    def __init__(self, beta, **kwargs):
-        super().__init__(**kwargs)
-        self.beta = beta
-
-    def call(self, y_true, y_pred):
-        return self.beta * super().call(y_true, y_pred)
-
-    def get_config(self):
-        result = super().get_config()
-        result['beta'] = self.beta
-        return result
-
-
 class SumLayer(keras.layers.Layer):
     def call(self, inputs):
         return tf.math.reduce_sum(inputs)
-
-
-class ZeroMaskingLayer(keras.layers.Layer):
-    def compute_mask(self, inputs, mask=None):
-        mask = tf.reduce_any(tf.not_equal(inputs, 0), axis=-1)
-        return mask

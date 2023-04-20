@@ -56,7 +56,6 @@ def stack_vector_layers(
     invar_mode='full',
     covar_mode='full',
     include_normalized_products=False,
-    convex_covariants=False,
 ):
     pieces = []
     for _ in range(n_vectors):
@@ -71,7 +70,6 @@ def stack_vector_layers(
             merge_fun=merge_fun,
             join_fun=join_fun,
             rank=rank,
-            convex_covariants=convex_covariants,
         )
         piece = layer([r, v])
         piece = keras.layers.Lambda(expand_neighborhood_dim)(piece)
@@ -166,12 +164,10 @@ class GalaBottleneckAutoencoder(GalaCore):
                 include_normalized_products=self.arguments[
                     'include_normalized_products'
                 ],
-                convex_covariants=self.arguments['convex_covariants'],
             )([last, (reference_last_x, reference_embedding)])
 
             return last_x
 
-        self._init(scope, storage)
         if 'encoded_base' in scope:
             (last_x, last) = scope['encoded_base']
             inputs = scope['input_symbol']
@@ -208,7 +204,6 @@ class GalaBottleneckAutoencoder(GalaCore):
                 include_normalized_products=self.arguments[
                     'include_normalized_products'
                 ],
-                convex_covariants=self.arguments['convex_covariants'],
             )
 
             reference_last_x = SVDLayer()(self.maybe_downcast_vector(reference_last_x))
@@ -219,7 +214,7 @@ class GalaBottleneckAutoencoder(GalaCore):
 
             embedding = last
             if self.arguments['cross_attention']:
-                arg = [last_x, last, w_in] if self.use_weights else [last_x, last]
+                arg = [last_x, last, w_in] if use_weights else [last_x, last]
                 arg = [arg, [reference_last_x, reference_embedding]]
                 embedding = last = self.Attention(
                     self.make_scorefun(),
@@ -254,9 +249,6 @@ class GalaBottleneckAutoencoder(GalaCore):
             last_x = self.make_vector_block(last_x, last)
 
         last_x = self.maybe_downcast_vector(last_x)
-
-        if 'equivariant_rescale_factor' in scope:
-            last_x = last_x / scope['equivariant_rescale_factor']
 
         scope['input_symbol'] = inputs
         scope['output'] = last_x
