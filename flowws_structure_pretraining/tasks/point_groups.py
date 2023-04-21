@@ -252,57 +252,44 @@ IcosahedralSymmetries = collections.namedtuple(
 
 @functools.lru_cache
 def get_icosahedral_symmetries():
-    import plato
-
     phi = (1 + np.sqrt(5)) / 2
-    coords = []
+    vertices = []
     for i, one, phi in itertools.product(range(3), [-1, 1], [-phi, phi]):
-        coords.append(np.roll((0, one, phi), i))
-    coords = np.array(coords)
-    np.random.seed(13)
-    v = np.random.normal(size=3)
-    (verts, faces) = plato.geometry.convexHull(coords)
-    norms = []
-    edge_map = {}
-    for face in faces:
-        (a, b, c) = face[:3]
-        edge_map[a] = edge_map[b] = c
-        edge_map[c] = a
-        norm = np.cross(verts[b] - verts[a], verts[c] - verts[a])
-        ortho = np.cross(norm, verts[a])
-        norms.append((norm, ortho))
-    norms = np.array(norms)
-    d3_axes = norms[np.dot(norms[:, 0, :], v) >= 0]
-    d3_axes /= np.linalg.norm(d3_axes, axis=-1, keepdims=True)
+        vertices.append(np.roll([0, one, phi], i))
+    vertices = np.array(vertices)
 
-    d5_index = np.where(np.dot(coords, v) >= 0)[0]
-    d5_axes = coords[np.dot(coords, v) >= 0]
-    d5_axes = []
-    for i in d5_index:
-        norm = coords[i]
-        ortho = np.cross(norm, coords[edge_map[i]])
-        d5_axes.append((norm, ortho))
-    d5_axes = np.array(d5_axes)
-    d5_axes /= np.linalg.norm(d5_axes, axis=-1, keepdims=True)
+    d5_ax = vertices[np.sum(vertices, axis=-1) > 0]
+    d5_neighbor_indices = np.argsort(
+        np.linalg.norm(d5_ax[:, None] - d5_ax[None], axis=-1), axis=-1
+    )[:, 1]
+    orthos = np.cross(d5_ax[:, None], d5_ax[d5_neighbor_indices, None])
+    d5_axes = np.concatenate([d5_ax[:, None], orthos], axis=1)
 
-    decomp = plato.geometry.convexDecomposition(verts)
-    edge_indices = np.array(list(decomp.edges))
-    edge_vectors = verts[edge_indices[:, 1]] - verts[edge_indices[:, 0]]
-    dots = np.abs(np.sum(edge_vectors[:, None] * edge_vectors[None], axis=-1)) / np.sum(
-        edge_vectors**2, axis=-1
-    )
-    par_i, par_j = np.where(dots > 1 - 1e-3)
-    filt = par_i != par_j
-    par_i, par_j = par_i[filt], par_j[filt]
-    good_edge_pairs = []
-    mirror_planes = []
-    for (i, j) in zip(par_i, par_j):
-        (a, b), (c, d) = edge_indices[i], edge_indices[j]
-        norm = np.cross(verts[c] - verts[a], verts[d] - verts[a])
-        mirror_planes.append(norm)
-    mirror_planes = np.array(mirror_planes)
-    mirror_planes = mirror_planes[np.dot(mirror_planes, v) >= 0]
-    return IcosahedralSymmetries(d3_axes, d5_axes, mirror_planes)
+    dod_vertices = list(itertools.product(*(3 * [[-1, 1]])))
+    for i, phi, invphi in itertools.product(
+        range(3), [-phi, phi], [-1.0 / phi, 1.0 / phi]
+    ):
+        dod_vertices.append(np.roll([0, phi, invphi], i))
+    dod_vertices = np.array(dod_vertices)
+    d3_ax = dod_vertices[np.sum(dod_vertices, axis=-1) > 0]
+    d3_neighbor_indices = np.argsort(
+        np.linalg.norm(d3_ax[:, None] - d3_ax[None], axis=-1), axis=-1
+    )[:, 1]
+    orthos = np.cross(d3_ax[:, None], d3_ax[d3_neighbor_indices, None])
+    d3_axes = np.concatenate([d3_ax[:, None], orthos], axis=1)
+
+    vertex_neighbors = np.argsort(
+        np.linalg.norm(vertices[:, None] - vertices[None], axis=-1), axis=-1
+    )[:, 1:6]
+    edges = set()
+    for (i, js) in zip(range(len(vertices)), vertex_neighbors):
+        edges.update([(min(i, j), max(i, j)) for j in js])
+    edges = np.array(list(edges))
+    mirrors = np.cross(vertices[edges[:, 0]], vertices[edges[:, 1]])
+    mirrors /= np.linalg.norm(mirrors, axis=-1, keepdims=True)
+    mirrors = mirrors[np.sum(mirrors, axis=-1) > 0]
+
+    return IcosahedralSymmetries(d3_axes, d5_axes, mirrors)
 
 
 @PointGroup.register('I')
