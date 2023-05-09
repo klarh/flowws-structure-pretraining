@@ -1,11 +1,14 @@
 import collections
 import functools
+import logging
 import os
 
 import flowws
 from flowws import Argument as Arg
 import garnett
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 GARNETT_READERS = dict(
     cif=garnett.reader.CifFileReader,
@@ -134,6 +137,17 @@ class FileLoader(flowws.Stage):
             1024,
             help='Limit to number of frames saved in lazily-loaded cache',
         ),
+        Arg(
+            'merge_type_names',
+            '-m',
+            bool,
+            False,
+            help=(
+                'If True, dynamically find type name encodings as frames '
+                'are parsed. Required for eagerly loading frames with differing '
+                'particle type names.'
+            ),
+        ),
     ]
 
     Frame = collections.namedtuple('Frame', ['positions', 'box', 'types', 'context'])
@@ -168,6 +182,10 @@ class FileLoader(flowws.Stage):
     def load_frames_eagerly(
         self, scope, frame_slice, all_frames, max_types, custom_context
     ):
+        self.type_map = collections.defaultdict(lambda: len(self.type_map))
+        found_types = None
+        warned_about_types = False
+
         for fname in self.arguments.get('filenames', []):
             context = dict(source='garnett', fname=fname)
             with garnett.read(fname) as traj:
@@ -184,15 +202,35 @@ class FileLoader(flowws.Stage):
                         custom_context if custom_context is not None else context
                     )
 
+                    type_names = tuple(frame.types)
+                    if self.arguments['merge_type_names']:
+                        type_map = np.array([self.type_map[t] for t in frame.types])
+                        types = type_map[types]
+                    elif (
+                        found_types is not None
+                        and found_types != type_names
+                        and not warned_about_types
+                    ):
+                        msg = (
+                            'Found type names on frame {} of file {} are '
+                            'inconsistent: the types found thus far are {}, '
+                            'but this frame\'s types are {}'
+                        ).format(i, fname, found_types, frame.types)
+                        logger.warning(msg)
+                        warned_about_types = True
+
                     frame = self.Frame(
                         frame.position,
                         frame.box.get_box_array(),
                         types,
                         dict(frame_context),
                     )
+                    found_types = type_names
                     max_types = max(max_types, int(np.max(frame.types)) + 1)
                     all_frames.append(frame)
 
+        if self.arguments['merge_type_names']:
+            max_types = max(max_types, len(self.type_map))
         scope['max_types'] = max_types
 
     def load_frames_lazily(
