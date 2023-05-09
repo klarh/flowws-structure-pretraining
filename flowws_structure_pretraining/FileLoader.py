@@ -1,9 +1,84 @@
 import collections
+import functools
+import os
 
 import flowws
 from flowws import Argument as Arg
 import garnett
 import numpy as np
+
+GARNETT_READERS = dict(
+    cif=garnett.reader.CifFileReader,
+    dcd=garnett.reader.DCDFileReader,
+    gsd=garnett.reader.GSDHoomdFileReader,
+    pos=garnett.reader.PosFileReader,
+    sqlite=garnett.reader.GetarFileReader,
+    tar=garnett.reader.GetarFileReader,
+    zip=garnett.reader.GetarFileReader,
+)
+
+GARNETT_TEXT_MODES = {'cif', 'pos'}
+
+
+def trajectory_wrapper(fname):
+    suffix = os.path.splitext(fname)[1][1:]
+    reader = GARNETT_READERS[suffix]
+    mode = 'r' if suffix in GARNETT_TEXT_MODES else 'rb'
+
+    f = open(fname, mode)
+    # store opened file handle in the cache in case a reader doesn't
+    # keep a reference to keep it alive
+    return f, reader().read(f)
+
+
+def frame_wrapper(fname, trajectory_wrapper, index):
+    (_, traj) = trajectory_wrapper(fname)
+    return traj[index]
+
+
+class LazyFrame:
+    def __init__(self, frame_cache, key, context, type_map):
+        self.frame_cache = frame_cache
+        self.key = key
+        self.context = context
+        self.type_map = type_map
+
+    def _replace(self, **kwargs):
+        msg = (
+            'Overwriting values on lazily-loaded frames is not supported. '
+            'Consider creating new trajectories instead if lazy loading '
+            'is required.'
+        )
+        raise RuntimeError(msg)
+
+    @property
+    def frame(self):
+        return self.frame_cache(*self.key)
+
+    @property
+    def positions(self):
+        return self.frame.position
+
+    @property
+    def box(self):
+        return self.frame.box.get_box_array()
+
+    @property
+    def types(self):
+        frame = self.frame
+        try:
+            type_map = np.array([self.type_map[t] for t in frame.types])
+        except KeyError:
+            msg = (
+                'Type(s) "{}" not set in input type_names array. All particle '
+                'types must be pre-specified for lazy file loading.'
+            ).format([t for t in self.type_map if t not in frame.types])
+            raise RuntimeError(msg)
+        return (
+            type_map[frame.typeid]
+            if frame.typeid is not None
+            else np.zeros(len(frame.position), dtype=np.int32)
+        )
 
 
 @flowws.add_stage_arguments
@@ -44,6 +119,21 @@ class FileLoader(flowws.Stage):
             [(str, eval)],
             help='Custom (key, value) elements to set the context for all frames',
         ),
+        Arg('lazy', '-l', bool, False, help='If True, lazily load frames as needed'),
+        Arg(
+            'lazy_file_limit',
+            None,
+            int,
+            16,
+            help='Maximum number of open files for lazy loading',
+        ),
+        Arg(
+            'lazy_cache_size',
+            None,
+            int,
+            1024,
+            help='Limit to number of frames saved in lazily-loaded cache',
+        ),
     ]
 
     Frame = collections.namedtuple('Frame', ['positions', 'box', 'types', 'context'])
@@ -66,6 +156,18 @@ class FileLoader(flowws.Stage):
             for (key, val) in self.arguments['custom_context']:
                 custom_context[key] = val
 
+        if self.arguments['lazy']:
+            self.load_frames_lazily(
+                scope, frame_slice, all_frames, max_types, custom_context
+            )
+        else:
+            self.load_frames_eagerly(
+                scope, frame_slice, all_frames, max_types, custom_context
+            )
+
+    def load_frames_eagerly(
+        self, scope, frame_slice, all_frames, max_types, custom_context
+    ):
         for fname in self.arguments.get('filenames', []):
             context = dict(source='garnett', fname=fname)
             with garnett.read(fname) as traj:
@@ -92,3 +194,29 @@ class FileLoader(flowws.Stage):
                     all_frames.append(frame)
 
         scope['max_types'] = max_types
+
+    def load_frames_lazily(
+        self, scope, frame_slice, all_frames, max_types, custom_context
+    ):
+        try:
+            self.type_map = {n: i for (i, n) in enumerate(scope['type_names'])}
+        except KeyError:
+            msg = '"type_names" must be provided in-scope for lazy loading of frames'
+            raise KeyError(msg)
+        scope['max_types'] = len(self.type_map)
+
+        self.lazy_files = functools.lru_cache(
+            maxsize=self.arguments['lazy_file_limit']
+        )(trajectory_wrapper)
+        self.lazy_frames = functools.lru_cache(
+            maxsize=self.arguments['lazy_cache_size']
+        )(frame_wrapper)
+        for fname in self.arguments.get('filenames', []):
+            context = dict(source='garnett', fname=fname)
+            (_, traj) = self.lazy_files(fname)
+            indices = list(range(len(traj)))[frame_slice]
+            for i in indices:
+                context['frame'] = i
+                key = (fname, self.lazy_files, i)
+                frame = LazyFrame(self.lazy_frames, key, context, self.type_map)
+                all_frames.append(frame)
