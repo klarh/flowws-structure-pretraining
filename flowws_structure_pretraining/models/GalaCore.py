@@ -363,7 +363,7 @@ class GalaCore(flowws.Stage):
 
             last_x = self.maybe_upcast_vector(last_x)
             for _ in range(num_blocks):
-                last_x, last = self.make_block(last_x, last)
+                last_x, last = self.make_block(last_x, last, w_in)
 
             scope['encoded_base'] = (last_x, last)
 
@@ -379,8 +379,8 @@ class GalaCore(flowws.Stage):
             last = PairwiseVectorDifferenceSum()(last)
         return last_x, last
 
-    def make_layer_inputs(self, x, v):
-        nonnorm = (x, v, w_in) if self.use_weights else (x, v)
+    def make_layer_inputs(self, x, v, w_in=None):
+        nonnorm = (x, v, w_in) if self.use_weights and w_in is not None else (x, v)
         if self.arguments['normalize_equivariant_values']:
             xnorm = keras.layers.LayerNormalization()(x)
             norm = (xnorm, v, w_in) if self.use_weights else (xnorm, v)
@@ -424,12 +424,12 @@ class GalaCore(flowws.Stage):
         layers.append(keras.layers.Dense(dim))
         return keras.models.Sequential(layers)
 
-    def make_block(self, last_x, last):
+    def make_block(self, last_x, last, w_in):
         residual_in_x = last_x
         residual_in = last
 
         if self.arguments['tied_attention']:
-            arg = self.make_layer_inputs(last_x, last)
+            arg = self.make_layer_inputs(last_x, last, w_in)
             (last_x, last) = self.AttentionTied(
                 self.make_scorefun(),
                 self.make_valuefun(self.n_dim),
@@ -449,7 +449,7 @@ class GalaCore(flowws.Stage):
             )(arg)
         else:
             if self.arguments['use_multivectors']:
-                arg = self.make_layer_inputs(last_x, last)
+                arg = self.make_layer_inputs(last_x, last, w_in)
                 last_x = self.AttentionVector(
                     self.make_scorefun(),
                     self.make_valuefun(self.n_dim),
@@ -468,7 +468,7 @@ class GalaCore(flowws.Stage):
                     linear_terms=self.arguments['linear_terms'],
                 )(arg)
 
-            arg = self.make_layer_inputs(last_x, last)
+            arg = self.make_layer_inputs(last_x, last, w_in)
             last = self.Attention(
                 self.make_scorefun(),
                 self.make_valuefun(self.n_dim),
