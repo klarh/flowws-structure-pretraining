@@ -9,4 +9,5 @@ from .NearestNeighbors import NearestNeighbors
 from .NormalizeNeighborDistance import NormalizeNeighborDistance
 from .PyriodicLoader import PyriodicLoader
 from .SANNeighbors import SANNeighbors
+from .SplitDataset import SplitDataset
 from .VoronoiNeighbors import VoronoiNeighbors

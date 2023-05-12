@@ -36,6 +36,7 @@ module_names = [
     'NormalizeNeighborDistance',
     'PyriodicLoader',
     'SANNeighbors',
+    'SplitDataset',
     'VoronoiNeighbors',
 ]
 for name in module_names:
@@ -77,14 +78,19 @@ add_subpkg(subpkg, module_names)
 subpkg = 'tasks'
 module_names = [
     'AutoencoderTask',
+    'AutoencoderTaskTransformer',
     'DenoisingTask',
+    'DenoisingTaskTransformer',
     'FrameClassificationTask',
     'FrameRegressionTask',
     'NearBondTask',
+    'NearBondTaskTransformer',
     'NearestBondTask',
     'NoisyBondTask',
+    'NoisyBondTaskTransformer',
     'PointGroupTask',
     'ShiftIdentificationTask',
+    'ShiftIdentificationTaskTransformer',
 ]
 add_subpkg(subpkg, module_names)
 

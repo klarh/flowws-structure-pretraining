@@ -1,8 +1,13 @@
 import bisect
 import collections
+import functools
 
+import flowws
+from flowws import Argument as Arg
 import freud
 import numpy as np
+
+from flowws_keras_geometry.data.internal import DataMixingPool
 
 Frame = collections.namedtuple(
     "Frame",
@@ -134,3 +139,97 @@ class EnvironmentGenerator:
         weights = frame.weights[bonds]
 
         return (rijs, tijs, weights), frame.context
+
+
+class TaskTransformer(flowws.Stage):
+    ARGS = [
+        Arg('batch_size', '-b', int, 16, help='Number of point clouds in each batch'),
+        Arg(
+            'pool_size', '-p', int, 512, help='Number of batches to mix in memory pools'
+        ),
+    ]
+
+    def run(self, scope, storage):
+        max_types = scope['max_types']
+        self.loaded_frames = scope['loaded_frames']
+        nlist_generator = scope['nlist_generator']
+        self.use_weights = scope.get('use_bond_weights', False)
+
+        for i, name in enumerate(['train', 'validation', 'test']):
+            frame_indices = scope.get('{}_frames'.format(name), None)
+            if not frame_indices:
+                continue
+            target_name = '{}_generator'.format(name)
+            evaluate = name == 'test'
+            seed = self.arguments['seed'] + i
+            data_generator = self.load(
+                frame_indices, nlist_generator, max_types, evaluate, seed
+            )
+            seed ^= 0b101010101
+            new_generator = self.transform(data_generator, evaluate, seed)
+
+            data_pool = DataMixingPool(
+                self.arguments['pool_size'], self.arguments['batch_size']
+            )
+            seed *= 2
+            pooled_generator = data_pool.sample(new_generator, seed)
+            scope[target_name] = map(self.collate_batch, pooled_generator)
+
+    def collate_batch(self, batch):
+        rijs, tijs, wijs, ys = [], [], [], []
+        max_size = 0
+        if self.use_weights:
+            for ((rij, tij, wij), y) in batch:
+                rijs.append(rij)
+                tijs.append(tij)
+                wijs.append(wij)
+                ys.append(y)
+                max_size = max(max_size, rij.shape[0])
+
+            x = (
+                pad(rijs, max_size, 3),
+                pad(tijs, max_size, tij.shape[-1]),
+                pad(wijs, max_size, None),
+            )
+        else:
+            for ((rij, tij), y) in batch:
+                rijs.append(rij)
+                tijs.append(tij)
+                ys.append(y)
+                max_size = max(max_size, rij.shape[0])
+
+            x = (
+                pad(rijs, max_size, 3),
+                pad(tijs, max_size, tij.shape[-1]),
+            )
+
+        if self.per_bond_label:
+            y = pad(ys, max_size, ys[0].shape[-1] if ys[0].ndim > 1 else None)
+        else:
+            y = np.array(ys)
+
+        return x, y
+
+    def load(self, indices, nlist_generator, max_types, evaluate, seed):
+        rng = np.random.default_rng(seed)
+        frames = np.array(indices, dtype=object)
+        done = False
+
+        while not done:
+            rng.shuffle(frames)
+            for description in frames:
+                frame = self.loaded_frames[description.index]
+                frame = process_frame(frame, nlist_generator, max_types)
+                for i in range(len(frame.positions)):
+                    bond_start = bisect.bisect_left(frame.index_i, i)
+                    bond_end = bisect.bisect_left(frame.index_i, i + 1)
+                    bonds = slice(bond_start, bond_end)
+
+                    rijs = frame.rijs[bonds]
+                    tijs = frame.tijs[bonds]
+                    weights = frame.weights[bonds]
+
+                    yield (rijs, tijs, weights), frame.context
+
+            if evaluate:
+                done = True

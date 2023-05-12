@@ -7,7 +7,7 @@ import numpy as np
 
 @flowws.add_stage_arguments
 class NoisyBondTask(flowws.Stage):
-    """Generate training data to identify noisy bonds"""
+    """Generate training data to identify which bonds have had random noise added."""
 
     ARGS = [
         Arg(

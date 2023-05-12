@@ -148,6 +148,13 @@ class FileLoader(flowws.Stage):
                 'particle type names.'
             ),
         ),
+        Arg(
+            'discover_type_names',
+            '-d',
+            bool,
+            False,
+            help='If True, scan all frames for types and print the result',
+        ),
     ]
 
     Frame = collections.namedtuple('Frame', ['positions', 'box', 'types', 'context'])
@@ -203,8 +210,9 @@ class FileLoader(flowws.Stage):
                     )
 
                     type_names = tuple(frame.types)
+                    type_map = [self.type_map[t] for t in frame.types]
                     if self.arguments['merge_type_names']:
-                        type_map = np.array([self.type_map[t] for t in frame.types])
+                        type_map = np.array(type_map)
                         types = type_map[types]
                     elif (
                         found_types is not None
@@ -229,6 +237,8 @@ class FileLoader(flowws.Stage):
                     max_types = max(max_types, int(np.max(frame.types)) + 1)
                     all_frames.append(frame)
 
+        if self.arguments['discover_type_names']:
+            print('Found type names: {}'.format(list(sorted(self.type_map))))
         if self.arguments['merge_type_names']:
             max_types = max(max_types, len(self.type_map))
         scope['max_types'] = max_types
