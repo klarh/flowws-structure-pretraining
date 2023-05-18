@@ -91,7 +91,9 @@ class GalaPotentialRegressor(GalaCore):
 
         last = keras.layers.Dense(self.dilation_dim, name='final_mlp')(last)
         last = self.activation_layer()(last)
-        last = keras.layers.Dense(1, name='energy_projection', use_bias=False)(last)
+        energy_prediction = last = keras.layers.Dense(
+            1, name='energy_projection', use_bias=False
+        )(last)
         if scope.get('per_molecule', False):
             energy_prediction = last = NeighborhoodReduction('sum', name='energy')(last)
         total_sum = SumLayer()(last)
