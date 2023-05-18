@@ -1,6 +1,7 @@
 from .version import __version__
 
 from .ClearMetrics import ClearMetrics
+from .ContextMapper import ContextMapper
 from .DistanceNeighbors import DistanceNeighbors
 from .FileLoader import FileLoader
 from .LimitAccuracyCallback import LimitAccuracyCallback

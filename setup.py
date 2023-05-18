@@ -28,6 +28,7 @@ def add_subpkg(subpkg, module_names):
 
 module_names = [
     'ClearMetrics',
+    'ContextMapper',
     'DistanceNeighbors',
     'FileLoader',
     'LimitAccuracyCallback',

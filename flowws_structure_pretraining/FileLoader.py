@@ -47,6 +47,11 @@ class LazyFrame:
         self.type_map = type_map
 
     def _replace(self, **kwargs):
+        if 'context' in kwargs:
+            self.context = kwargs.pop('context')
+            if not kwargs:
+                return
+
         msg = (
             'Overwriting values on lazily-loaded frames is not supported. '
             'Consider creating new trajectories instead if lazy loading '
