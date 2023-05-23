@@ -247,6 +247,7 @@ class FileLoader(flowws.Stage):
         if self.arguments['merge_type_names']:
             max_types = max(max_types, len(self.type_map))
         scope['max_types'] = max_types
+        scope['type_name_map'] = self.type_map
 
     def load_frames_lazily(
         self, scope, frame_slice, all_frames, max_types, custom_context
@@ -273,3 +274,4 @@ class FileLoader(flowws.Stage):
                 key = (fname, self.lazy_files, i)
                 frame = LazyFrame(self.lazy_frames, key, context, self.type_map)
                 all_frames.append(frame)
+        scope['type_name_map'] = self.type_map
