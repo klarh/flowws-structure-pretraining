@@ -94,7 +94,7 @@ class GalaPotentialRegressor(GalaCore):
         energy_prediction = last = keras.layers.Dense(
             1, name='energy_projection', use_bias=False
         )(last)
-        if scope.get('per_molecule', False):
+        if scope.get('per_molecule', False) and not self.arguments['center_of_mass']:
             reduction_mode = scope.get('molecule_reduction', 'sum')
             energy_prediction = last = NeighborhoodReduction(
                 reduction_mode, name='energy'

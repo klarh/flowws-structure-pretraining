@@ -1,4 +1,5 @@
-from .internal import NeighborDistanceNormalization, NoiseInjector
+from .internal import NeighborDistanceNormalization, NeighborhoodReduction
+from .internal import NoiseInjector
 from .internal import PairwiseVectorDifference, PairwiseVectorDifferenceSum
 from .internal import ResidualMaskedLayer, ZeroMaskingLayer
 
@@ -249,6 +250,13 @@ class GalaCore(flowws.Stage):
             'full',
             help='Generation mode (partial/full) for linear term combinations',
         ),
+        Arg(
+            'center_of_mass',
+            None,
+            bool,
+            False,
+            help='If True, for molecules, use a center-of-mass encoding instead of pairwise atomic encoding',
+        ),
     ]
 
     def _init(self, scope, storage):
@@ -375,8 +383,12 @@ class GalaCore(flowws.Stage):
 
     def maybe_expand_molecule(self, scope, last_x, last):
         if scope.get('per_molecule', False):
-            last_x = PairwiseVectorDifference()(last_x)
-            last = PairwiseVectorDifferenceSum()(last)
+            if self.arguments['center_of_mass']:
+                center = NeighborhoodReduction('mean')(last_x)[..., None, :]
+                last_x = last_x - center
+            else:
+                last_x = PairwiseVectorDifference()(last_x)
+                last = PairwiseVectorDifferenceSum()(last)
         return last_x, last
 
     def make_layer_inputs(self, x, v, w_in=None):
