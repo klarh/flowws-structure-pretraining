@@ -4,6 +4,7 @@ from .ClearMetrics import ClearMetrics
 from .ContextMapper import ContextMapper
 from .DistanceNeighbors import DistanceNeighbors
 from .FileLoader import FileLoader
+from .Frame2Molecule import Frame2Molecule
 from .FrameFilter import FrameFilter
 from .LimitAccuracyCallback import LimitAccuracyCallback
 from .LoadModel import LoadModel

@@ -31,6 +31,7 @@ module_names = [
     'ContextMapper',
     'DistanceNeighbors',
     'FileLoader',
+    'Frame2Molecule',
     'FrameFilter',
     'LimitAccuracyCallback',
     'LoadModel',
