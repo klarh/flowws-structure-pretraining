@@ -86,6 +86,15 @@ class NeighborhoodReduction(keras.layers.Layer):
             return tf.math.reduce_sum(result, axis=-2)
         elif self.mode == 'soft_max':
             return tf.math.reduce_logsumexp(result, axis=-2)
+        elif self.mode == 'mean':
+            numerator = tf.math.reduce_sum(result, axis=-2)
+            if mask is not None:
+                denominator = tf.math.reduce_sum(tf.cast(mask, tf.float32), axis=-2)
+                denominator = tf.cast(denominator, tf.float32)
+                denominator_inverse = tf.math.reciprocal_no_nan(denominator)
+            else:
+                denominator_inverse = 1.0 / tf.shape(inputs)[-2]
+            return numerator * denominator_inverse
         else:
             raise NotImplementedError()
 
