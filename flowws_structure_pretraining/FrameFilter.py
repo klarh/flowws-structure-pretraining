@@ -33,6 +33,7 @@ class FrameFilter(flowws.Stage):
             True,
             help='If given and no whitelisted particles are found, return the frame unchanged',
         ),
+        Arg('center', None, bool, False, help='If True, center particles afterward'),
     ]
 
     def run(self, scope, storage):
@@ -55,12 +56,12 @@ class FrameFilter(flowws.Stage):
         if not np.any(final_filter) and self.arguments['skip_empty_whitelist']:
             return frame
 
+        fbox = freud.box.Box.from_box(frame.box)
         if len(self.forced_bond_types):
             dest_indices = np.where(np.isin(frame.types, self.forced_bond_types))[0]
-            fbox = freud.box.Box.from_box(frame.box)
-            q = freud.locality.AABBQuery(fbox, frame.positions[final_filter])
+            q = freud.locality.AABBQuery(fbox, frame.positions[dest_indices])
             qr = q.query(
-                frame.positions[dest_indices],
+                frame.positions[final_filter],
                 dict(
                     mode='nearest',
                     num_neighbors=self.arguments['forced_bond_count'],
@@ -71,6 +72,9 @@ class FrameFilter(flowws.Stage):
             forced_indices = dest_indices[np.unique(nl.point_indices)]
             final_filter[forced_indices] = True
 
-        return frame._replace(
-            positions=frame.positions[final_filter], types=frame.types[final_filter]
-        )
+        positions = frame.positions[final_filter]
+
+        if self.arguments['center']:
+            positions = fbox.center(positions)
+
+        return frame._replace(positions=positions, types=frame.types[final_filter])
