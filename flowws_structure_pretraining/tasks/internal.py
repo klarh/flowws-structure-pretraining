@@ -31,7 +31,7 @@ def process_frame(frame, nlist_generator, max_types):
     positions = frame.positions
     types = frame.types
     context = frame.context
-    nl = nlist_generator(box, positions)
+    nl = nlist_generator(box, positions, types)
 
     index_i = nl.query_point_indices
     index_j = nl.point_indices

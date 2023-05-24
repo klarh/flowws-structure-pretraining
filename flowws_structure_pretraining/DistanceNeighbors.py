@@ -36,7 +36,7 @@ class DistanceNeighbors(flowws.Stage):
         scope['pad_size'] = self.arguments['max_neighbors']
         scope['max_neighbors'] = self.arguments['max_neighbors']
 
-    def get_nlist(self, box, positions):
+    def get_nlist(self, box, positions, types=None):
         rcut = self.arguments['r_cut']
         if 'rdf_shells' in self.arguments:
             done = False

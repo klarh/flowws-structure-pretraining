@@ -22,7 +22,7 @@ class VoronoiNeighbors(flowws.Stage):
         scope['max_neighbors'] = self.arguments['max_neighbors']
         scope['use_bond_weights'] = True
 
-    def get_nlist(self, box, positions):
+    def get_nlist(self, box, positions, types=None):
         maximum_neighbors = self.arguments['max_neighbors']
         self.voronoi.compute((box, positions))
         nl = self.voronoi.nlist

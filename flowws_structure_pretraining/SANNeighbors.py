@@ -97,7 +97,7 @@ class SANNeighbors(flowws.Stage):
     def run(self, scope, storage):
         scope['nlist_generator'] = self.get_nlist
 
-    def get_nlist(self, box, positions):
+    def get_nlist(self, box, positions, types=None):
         system = self.System(box, positions)
         sann = SANN(system)
         return sann.compute(positions)
