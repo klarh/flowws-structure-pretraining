@@ -95,7 +95,10 @@ class GalaPotentialRegressor(GalaCore):
             1, name='energy_projection', use_bias=False
         )(last)
         if scope.get('per_molecule', False):
-            energy_prediction = last = NeighborhoodReduction('sum', name='energy')(last)
+            reduction_mode = scope.get('molecule_reduction', 'sum')
+            energy_prediction = last = NeighborhoodReduction(
+                reduction_mode, name='energy'
+            )(last)
         total_sum = SumLayer()(last)
         force_prediction = GradientLayer(name='force')((total_sum, inputs[0]))[0]
 
