@@ -93,7 +93,7 @@ class NeighborhoodReduction(keras.layers.Layer):
                 denominator = tf.cast(denominator, tf.float32)
                 denominator_inverse = tf.math.reciprocal_no_nan(denominator)
             else:
-                denominator_inverse = 1.0 / tf.shape(inputs)[-2]
+                denominator_inverse = 1.0 / tf.cast(tf.shape(inputs)[-2], tf.float32)
             return numerator * denominator_inverse
         else:
             raise NotImplementedError()
