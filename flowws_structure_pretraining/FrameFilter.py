@@ -39,9 +39,9 @@ class FrameFilter(flowws.Stage):
     def run(self, scope, storage):
         self.type_map = scope['type_name_map']
 
-        whitelist_types = set(self.arguments['whitelist_types'])
+        whitelist_types = set(self.arguments.get('whitelist_types', []))
         assert whitelist_types, 'whitelist_types must be provided'
-        forced_bond_types = set(self.arguments['forced_bond_types'])
+        forced_bond_types = set(self.arguments.get('forced_bond_types', []))
         self.whitelist_types = np.array([self.type_map[t] for t in whitelist_types])
         self.forced_bond_types = np.array([self.type_map[t] for t in forced_bond_types])
 
