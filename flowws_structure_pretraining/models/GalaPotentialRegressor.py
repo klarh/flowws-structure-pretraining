@@ -54,6 +54,13 @@ class GalaPotentialRegressor(GalaCore):
             1.0,
             help='MSE loss contribution for second set of predicted quantities',
         ),
+        Arg(
+            'learn_bias',
+            None,
+            bool,
+            False,
+            help='If True, learn a bias term in the final energy reduction',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -92,7 +99,7 @@ class GalaPotentialRegressor(GalaCore):
         last = keras.layers.Dense(self.dilation_dim, name='final_mlp')(last)
         last = self.activation_layer()(last)
         energy_prediction = last = keras.layers.Dense(
-            1, name='energy_projection', use_bias=False
+            1, name='energy_projection', use_bias=self.arguments['learn_bias']
         )(last)
         if scope.get('per_molecule', False) and not self.arguments['center_of_mass']:
             reduction_mode = scope.get('molecule_reduction', 'sum')
