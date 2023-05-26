@@ -76,6 +76,8 @@ def index_frame(frame, indices, max_size, type_dim):
     for i in indices:
         bond_start = bisect.bisect_left(frame.index_i, i)
         bond_end = bisect.bisect_left(frame.index_i, i + 1)
+        if bond_start == bond_end:
+            continue
         bonds = slice(bond_start, bond_end)
         all_bonds.append(bonds)
 
