@@ -29,6 +29,7 @@ def add_subpkg(subpkg, module_names):
 module_names = [
     'ClearMetrics',
     'ContextMapper',
+    'ContextSplitDataset',
     'DistanceNeighbors',
     'FileLoader',
     'Frame2Molecule',
