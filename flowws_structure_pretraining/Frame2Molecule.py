@@ -28,13 +28,14 @@ class Frame2Molecule(flowws.Stage):
         self.context_label = self.arguments['context_label']
         self.max_types = scope.get('max_types', 1)
 
-        xs, ts, ys = [], [], []
+        xs, ts, ys, ctxs = [], [], [], []
         max_size = 0
         for frame in scope['loaded_frames']:
             (x, t, y) = self.encode(frame)
             xs.append(x)
             ts.append(t)
             ys.append(y)
+            ctxs.append(frame.context)
             max_size = max(max_size, len(x))
 
         print('Molecule max_size:', max_size)
@@ -42,6 +43,7 @@ class Frame2Molecule(flowws.Stage):
         xs_array = np.zeros((len(xs), max_size, 3))
         ts_array = np.zeros((len(xs), max_size, self.max_types))
         ys_array = np.zeros((len(xs), 1))
+        ctx_array = np.array(ctxs, dtype=object)
 
         for i, (x, t, y) in enumerate(zip(xs, ts, ys)):
             xs_array[i, : len(x)] = x
@@ -62,6 +64,7 @@ class Frame2Molecule(flowws.Stage):
 
         scope['x_train'] = (xs_array, ts_array)
         scope['y_train'] = ys_array
+        scope['x_contexts'] = ctx_array
         scope['per_molecule'] = True
         scope.setdefault('metrics', []).append('mean_absolute_error')
 
