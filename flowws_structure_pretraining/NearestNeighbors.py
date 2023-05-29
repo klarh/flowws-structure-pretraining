@@ -33,7 +33,7 @@ class NearestNeighbors(flowws.Stage):
             help='Number of bonds that will be forced',
         ),
         Arg(
-            'max_neighbors', '-n', int, 16, help='Maximum number of neighbors to allow'
+            'max_neighbors', '-x', int, 16, help='Maximum number of neighbors to allow'
         ),
     ]
 
