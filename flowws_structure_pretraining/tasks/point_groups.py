@@ -170,28 +170,6 @@ def full_tetrahedral(x):
 
 @PointGroup.register('Th')
 def pyritohedral(x):
-    pieces = [x]
-    for corner in [(1, 1, 1), (1, -1, -1), (-1, -1, 1), (-1, 1, -1)]:
-        pieces.append(rotoreflection(x, 3, axis=corner)[len(x) :])
-
-    for face in [(1, 0, 0), (0, 1, 0), (0, 0, 1)]:
-        pieces.append(nfold_rotation(x, 2, axis=face)[len(x) :])
-
-    mirrors = np.array(
-        [
-            (0, 0, 1),
-            (0, 1, 0),
-            (1, 0, 0),
-        ]
-    )
-    quats = rowan.from_mirror_plane(*mirrors.T)
-    for mirror in quats:
-        pieces.append(rowan.reflect(mirror[None], x))
-    return inversion(np.concatenate(pieces, axis=0))
-
-
-@PointGroup.register('Th')
-def pyritohedral(x):
     x = chiral_tetrahedral(x)
     pieces = []
 
