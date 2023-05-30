@@ -234,7 +234,7 @@ class SubgroupDataset:
 
         self.subgroup_transform_getter = functools.lru_cache(PointGroup.get)
 
-        self.subgroup_map = SubgroupClassMap(type_max, blacklist)
+        self.subgroup_map = SubgroupClassMap(sym_max, blacklist)
 
         self.train_generator = self.generate(seed)
         self.validation_generator = self.generate(seed + 1)
