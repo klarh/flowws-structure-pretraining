@@ -23,6 +23,13 @@ class FrameRegressionTask(FrameClassificationTask):
             False,
             help='If True, normalize labels to have a mean of 0 and variance of 1',
         ),
+        Arg(
+            'normalize_labels_context_key',
+            None,
+            str,
+            help='If given, only contexts with the given key set to True will be '
+            'used for label normalization',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -37,19 +44,36 @@ class FrameRegressionTask(FrameClassificationTask):
         if self.arguments['normalize_labels']:
             from flowws_keras_geometry.data.internal import ScaledMAE
 
-            mu, sigma = np.mean(ys), np.std(ys)
+            if 'normalize_label_mean' in scope:
+                mu = scope['normalize_label_mean']
+                sigma = scope['normalize_label_std']
+            elif 'normalize_labels_context_key' in self.arguments:
+                key = self.arguments['normalize_labels_context_key']
+                filt = [bool(ctx.get(key, False)) for ctx in scope['x_contexts']]
+                filtered_ys = np.array(ys)[filt]
+                mu, sigma = np.mean(filtered_ys), np.std(filtered_ys)
+            else:
+                mu, sigma = np.mean(ys), np.std(ys)
+
             ys = (np.array(ys) - mu) / sigma
-            if 'validation_data' in scope:
-                scope['validation_data'][-1] -= mu
-                scope['validation_data'][-1] /= sigma
+            for dset_name in scope.get('dataset_names', ['validation', 'test']):
+                if dset_name == 'train':
+                    # training data will already get handled
+                    continue
+                dset_name = '{}_data'.format(dset_name)
+                if dset_name in scope:
+                    scope[dset_name][-1][:] -= mu
+                    scope[dset_name][-1][:] /= sigma
             scope['normalize_label_mean'] = mu
             scope['normalize_label_std'] = sigma
 
             metrics = scope.setdefault('metrics', [])
-            scaled_mae = ScaledMAE(sigma, name='scaled_mae')
-            metrics.append(scaled_mae)
+            if not any(isinstance(m, ScaledMAE) for m in metrics):
+                scaled_mae = ScaledMAE(sigma, name='scaled_mae')
+                metrics.append(scaled_mae)
 
         scope['y_train'] = np.asarray(ys)
         scope['loss'] = 'mse'
         scope['metrics'].remove('accuracy')
-        scope['metrics'].append('mean_absolute_error')
+        if 'mean_absolute_error' not in scope['metrics']:
+            scope['metrics'].append('mean_absolute_error')
