@@ -31,3 +31,5 @@ class ContextSplitDataset(flowws.Stage):
             scope['y_{}'.format(name)] = dataset[1]
             ctx_name = 'x_contexts' if name == 'train' else '{}_contexts'.format(name)
             scope[ctx_name] = ctx
+
+        scope['dataset_names'] = dataset_names
