@@ -194,7 +194,9 @@ class FileLoader(flowws.Stage):
     def load_frames_eagerly(
         self, scope, frame_slice, all_frames, max_types, custom_context
     ):
-        self.type_map = collections.defaultdict(lambda: len(self.type_map))
+        self.type_map = scope.get(
+            'type_name_map', collections.defaultdict(lambda: len(self.type_map))
+        )
         found_types = None
         warned_about_types = False
 
