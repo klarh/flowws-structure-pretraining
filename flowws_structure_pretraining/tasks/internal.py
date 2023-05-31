@@ -124,16 +124,22 @@ class EnvironmentGenerator:
                 if not len(particle_indices[frame_i]):
                     continue
                 particle = rng.choice(particle_indices[frame_i])
-                yield self.produce(frame_i, particle)
+                result = self.produce(frame_i, particle)
+                if result is not None:
+                    yield result
         else:
             for frame_i in range(len(self.frames)):
                 for particle in particle_indices[frame_i]:
-                    yield self.produce(frame_i, particle)
+                    result = self.produce(frame_i, particle)
+                    if result is not None:
+                        yield result
 
     def produce(self, frame_i, particle):
         frame = self.frames[frame_i]
         bond_start = bisect.bisect_left(frame.index_i, particle)
         bond_end = bisect.bisect_left(frame.index_i, particle + 1)
+        if bond_start == bond_end:
+            return None
         bonds = slice(bond_start, bond_end)
 
         rijs = frame.rijs[bonds]

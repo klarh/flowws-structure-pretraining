@@ -118,6 +118,8 @@ class NearBondTask(flowws.Stage):
                 N_eligible = int(self.arguments['nearest_fraction'] * len(sortidx))
 
                 eligible, ineligible = sortidx[:N_eligible], sortidx[N_eligible:]
+                if len(eligible) < 1:
+                    continue
                 rng.shuffle(eligible)
                 selection = eligible[0]
                 eligible = eligible[1:]
