@@ -36,7 +36,8 @@ def process_frame(frame, nlist_generator, max_types):
     index_i = nl.query_point_indices
     index_j = nl.point_indices
     weights = nl.weights.copy()
-    weights /= np.repeat(np.add.reduceat(weights, nl.segments), nl.neighbor_counts)
+    if len(weights):
+        weights /= np.repeat(np.add.reduceat(weights, nl.segments), nl.neighbor_counts)
 
     rijs = positions[index_j] - positions[index_i]
     rijs = freud.box.Box.from_box(box).wrap(rijs)
