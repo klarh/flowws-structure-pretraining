@@ -75,5 +75,5 @@ class FrameRegressionTask(FrameClassificationTask):
         scope['y_train'] = np.asarray(ys)
         scope['loss'] = 'mse'
         scope['metrics'].remove('accuracy')
-        if 'mean_absolute_error' not in scope['metrics']:
+        if 'mean_absolute_error' not in scope.setdefault('metrics', []):
             scope['metrics'].append('mean_absolute_error')
