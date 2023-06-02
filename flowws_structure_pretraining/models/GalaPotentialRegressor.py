@@ -61,6 +61,14 @@ class GalaPotentialRegressor(GalaCore):
             False,
             help='If True, learn a bias term in the final energy reduction',
         ),
+        Arg(
+            'final_bond_reduction',
+            None,
+            str,
+            'attention',
+            help='Type of final reduction to be done after equivariant blocks: '
+            '(attention, sum, mean)',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -82,18 +90,26 @@ class GalaPotentialRegressor(GalaCore):
         else:
             arg = self.make_layer_inputs(last_x, last)
 
-        (last, ivs, att) = self.Attention(
-            self.make_scorefun(),
-            self.make_valuefun(self.n_dim),
-            True,
-            name='final_attention',
-            rank=self.rank,
-            join_fun=self.join_fun,
-            merge_fun=self.merge_fun,
-            invariant_mode=self.invar_mode,
-            covariant_mode=self.covar_mode,
-            include_normalized_products=self.arguments['include_normalized_products'],
-        )(arg, return_invariants=True, return_attention=True)
+        bond_reduction = self.arguments['final_bond_reduction']
+        if bond_reduction == 'attention':
+            (last, ivs, att) = self.Attention(
+                self.make_scorefun(),
+                self.make_valuefun(self.n_dim),
+                True,
+                name='final_attention',
+                rank=self.rank,
+                join_fun=self.join_fun,
+                merge_fun=self.merge_fun,
+                invariant_mode=self.invar_mode,
+                covariant_mode=self.covar_mode,
+                include_normalized_products=self.arguments[
+                    'include_normalized_products'
+                ],
+            )(arg, return_invariants=True, return_attention=True)
+        elif bond_reduction in ('mean', 'sum'):
+            last = arg[0][1]
+        else:
+            raise NotImplementedError(bond_reduction)
         last_x = self.maybe_downcast_vector(last_x)
 
         last = keras.layers.Dense(self.dilation_dim, name='final_mlp')(last)
@@ -101,6 +117,10 @@ class GalaPotentialRegressor(GalaCore):
         energy_prediction = last = keras.layers.Dense(
             1, name='energy_projection', use_bias=self.arguments['learn_bias']
         )(last)
+
+        if bond_reduction in ('mean', 'sum'):
+            energy_prediction = last = NeighborhoodReduction(bond_reduction)(last)
+
         if scope.get('per_molecule', False) and not self.arguments['center_of_mass']:
             reduction_mode = scope.get('molecule_reduction', 'sum')
             energy_prediction = last = NeighborhoodReduction(
