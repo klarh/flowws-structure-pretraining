@@ -29,9 +29,19 @@ class DistanceNeighbors(flowws.Stage):
             8,
             help='Smoothing lengthscale to apply for RDFs',
         ),
+        Arg(
+            'center_types',
+            '-c',
+            [str],
+            help='Names of types that will be centers of point clouds',
+        ),
     ]
 
     def run(self, scope, storage):
+        self.type_map = scope['type_name_map']
+        center_types = set(self.arguments.get('center_types', []))
+        self.center_types = np.array([self.type_map[t] for t in center_types])
+
         scope['nlist_generator'] = self.get_nlist
         scope['pad_size'] = self.arguments['max_neighbors']
         scope['max_neighbors'] = self.arguments['max_neighbors']
@@ -92,6 +102,14 @@ class DistanceNeighbors(flowws.Stage):
         maximum_neighbors = self.arguments['max_neighbors']
         qr = q.query(positions, dict(mode='ball', r_max=rcut, exclude_ii=True))
         nl = qr.toNeighborList(sort_by_distance=False)
+
+        if len(self.center_types):
+            if types is None:
+                raise ValueError('Types not available, but center_types is set')
+
+            bond_source_types = types[nl.query_point_indices]
+            bond_filter = np.isin(bond_source_types, self.center_types)
+            nl.filter(bond_filter)
 
         if np.any(nl.neighbor_counts > maximum_neighbors):
             filt = np.ones(len(nl), dtype=np.bool)
