@@ -127,7 +127,7 @@ class GalaPotentialRegressor(GalaCore):
                 reduction_mode, name='energy'
             )(last)
         total_sum = SumLayer()(last)
-        force_prediction = GradientLayer(name='force')((total_sum, inputs[0]))[0]
+        force_prediction = GradientLayer(name='force')((-total_sum, inputs[0]))[0]
 
         outputs = []
         if self.arguments['predict_energy']:
