@@ -331,8 +331,8 @@ class GalaCore(flowws.Stage):
                 w_in = keras.layers.Input((None,), name='wij')
                 inputs = [x_in, v_in, w_in]
 
-            (last_x, last) = self.maybe_expand_molecule(scope, x_in, v_in)
-            last_x = ZeroMaskingLayer()(last_x)
+            last_x = ZeroMaskingLayer()(x_in)
+            (last_x, last) = self.maybe_expand_molecule(scope, last_x, v_in)
             last = keras.layers.Dense(self.n_dim, name='type_embedding')(last)
 
             scope.pop('equivariant_rescale_factor', None)
