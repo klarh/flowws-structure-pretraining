@@ -1,7 +1,7 @@
 from .internal import NeighborDistanceNormalization, NeighborhoodReduction
 from .internal import NoiseInjector
 from .internal import PairwiseVectorDifference, PairwiseVectorDifferenceSum
-from .internal import ResidualMaskedLayer, ZeroMaskingLayer
+from .internal import LambdaMaskedLayer, ResidualMaskedLayer, ZeroMaskingLayer
 
 import flowws
 from flowws import Argument as Arg
@@ -297,7 +297,7 @@ class GalaCore(flowws.Stage):
             self.maybe_downcast_vector = lambda x: x
 
         if self.arguments['activation'] in LAMBDA_ACTIVATIONS:
-            self.activation_layer = lambda: keras.layers.Lambda(
+            self.activation_layer = lambda: LambdaMaskedLayer(
                 LAMBDA_ACTIVATIONS[self.arguments['activation']]
             )
         else:
@@ -332,7 +332,8 @@ class GalaCore(flowws.Stage):
                 inputs = [x_in, v_in, w_in]
 
             last_x = ZeroMaskingLayer()(x_in)
-            (last_x, last) = self.maybe_expand_molecule(scope, last_x, v_in)
+            last = ZeroMaskingLayer()(v_in)
+            (last_x, last) = self.maybe_expand_molecule(scope, last_x, last)
             last = keras.layers.Dense(self.n_dim, name='type_embedding')(last)
 
             scope.pop('equivariant_rescale_factor', None)
@@ -355,7 +356,7 @@ class GalaCore(flowws.Stage):
                         self.n_dim, name='distance_embedding'
                     )(embedding_scale)
                     if self.arguments['gaussian_scale_equivariant_embedding']:
-                        embedding = keras.layers.Lambda(LAMBDA_ACTIVATIONS['gaussian'])(
+                        embedding = LambdaMaskedLayer(LAMBDA_ACTIVATIONS['gaussian'])(
                             embedding
                         )
                     last = last + embedding

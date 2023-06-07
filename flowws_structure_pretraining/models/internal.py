@@ -29,9 +29,12 @@ class NeighborDistanceNormalization(keras.layers.Layer):
         self.mode = mode
         self.lengthscale = float(lengthscale)
         self.return_scale = return_scale
+
+        if mode == 'mean':
+            self.reduction = NeighborhoodReduction(mode)
         super().__init__(*args, **kwargs)
 
-    def call(self, inputs):
+    def call(self, inputs, mask=None):
         if self.mode == 'min':
             distances = custom_norm(inputs)
             scale = self.lengthscale / tf.maximum(
@@ -45,9 +48,9 @@ class NeighborDistanceNormalization(keras.layers.Layer):
             )
         elif self.mode == 'mean':
             distances = custom_norm(inputs)
-            scale = self.lengthscale / tf.maximum(
-                1e-7, tf.math.reduce_mean(distances, axis=-2, keepdims=True)
-            )
+            denominator = self.reduction(distances, mask=mask)
+            denominator_inverse = tf.math.reciprocal_no_nan(denominator)
+            scale = self.lengthscale * denominator_inverse[..., None]
         else:
             raise NotImplementedError()
 
@@ -97,6 +100,12 @@ class NeighborhoodReduction(keras.layers.Layer):
             return numerator * denominator_inverse
         else:
             raise NotImplementedError()
+
+    def compute_mask(self, inputs, mask=None):
+        if mask is None:
+            return mask
+
+        return tf.math.reduce_any(mask, axis=-1)
 
     def get_config(self):
         result = super().get_config()
@@ -174,6 +183,11 @@ class ResidualMaskedLayer(keras.layers.Layer):
         elif mask_right is None:
             return mask_left
         return tf.math.logical_and(mask_left, mask_right)
+
+
+class LambdaMaskedLayer(keras.layers.Lambda):
+    def compute_mask(self, inputs, mask=None):
+        return mask
 
 
 class ScaledMSELoss(keras.losses.MeanSquaredError):
