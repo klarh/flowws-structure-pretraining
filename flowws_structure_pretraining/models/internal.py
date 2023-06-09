@@ -205,7 +205,9 @@ class ScaledMSELoss(keras.losses.MeanSquaredError):
 
 
 class SumLayer(keras.layers.Layer):
-    def call(self, inputs):
+    def call(self, inputs, mask=None):
+        if mask is not None:
+            inputs = tf.where(mask[..., None], inputs, tf.zeros_like(inputs))
         return tf.math.reduce_sum(inputs)
 
 
