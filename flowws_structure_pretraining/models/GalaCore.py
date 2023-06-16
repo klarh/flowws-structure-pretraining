@@ -338,6 +338,8 @@ class GalaCore(flowws.Stage):
                 w_in = keras.layers.Input((None,), name='wij')
                 inputs = [x_in, v_in, w_in]
 
+            attention_outputs = []
+
             last_x = ZeroMaskingLayer()(x_in)
             last = ZeroMaskingLayer()(v_in)
             (last_x, last) = self.maybe_expand_molecule(scope, last_x, last)
@@ -379,13 +381,14 @@ class GalaCore(flowws.Stage):
 
             last_x = self.maybe_upcast_vector(last_x)
             for _ in range(num_blocks):
-                last_x, last = self.make_block(last_x, last, w_in)
+                last_x, last = self.make_block(last_x, last, w_in, attention_outputs)
 
             scope['encoded_base'] = (last_x, last)
 
         embedding = last
         scope['input_symbol'] = inputs
         scope['output'] = (last_x, last)
+        scope['attention_outputs'] = attention_outputs
         scope['model'] = keras.models.Model(inputs, scope['output'])
         scope['embedding_model'] = keras.models.Model(inputs, embedding)
 
@@ -444,13 +447,16 @@ class GalaCore(flowws.Stage):
         layers.append(keras.layers.Dense(dim))
         return keras.models.Sequential(layers)
 
-    def make_block(self, last_x, last, w_in):
+    def make_block(self, last_x, last, w_in, attention_outputs=None):
+        if attention_outputs is None:
+            attention_outputs = []
+
         residual_in_x = last_x
         residual_in = last
 
         if self.arguments['tied_attention']:
             arg = self.make_layer_inputs(last_x, last, w_in)
-            (last_x, last) = self.AttentionTied(
+            ((last_x, last), att) = self.AttentionTied(
                 self.make_scorefun(),
                 self.make_valuefun(self.n_dim),
                 self.make_valuefun(1),
@@ -466,11 +472,12 @@ class GalaCore(flowws.Stage):
                 convex_covariants=self.arguments['convex_covariants'],
                 linear_mode=self.arguments['linear_mode'],
                 linear_terms=self.arguments['linear_terms'],
-            )(arg)
+            )(arg, return_attention=True)
+            attention_outputs.append(att)
         else:
             if self.arguments['use_multivectors']:
                 arg = self.make_layer_inputs(last_x, last, w_in)
-                last_x = self.AttentionVector(
+                (last_x, att) = self.AttentionVector(
                     self.make_scorefun(),
                     self.make_valuefun(self.n_dim),
                     self.make_valuefun(1),
@@ -486,10 +493,11 @@ class GalaCore(flowws.Stage):
                     convex_covariants=self.arguments['convex_covariants'],
                     linear_mode=self.arguments['linear_mode'],
                     linear_terms=self.arguments['linear_terms'],
-                )(arg)
+                )(arg, return_attention=True)
+                attention_outputs.append(att)
 
             arg = self.make_layer_inputs(last_x, last, w_in)
-            last = self.Attention(
+            (last, att) = self.Attention(
                 self.make_scorefun(),
                 self.make_valuefun(self.n_dim),
                 False,
@@ -503,7 +511,8 @@ class GalaCore(flowws.Stage):
                 ],
                 linear_mode=self.arguments['linear_mode'],
                 linear_terms=self.arguments['linear_terms'],
-            )(arg)
+            )(arg, return_attention=True)
+            attention_outputs.append(att)
 
         if self.block_nonlin:
             last = self.make_valuefun(self.n_dim, in_network=False)(last)
@@ -521,9 +530,12 @@ class GalaCore(flowws.Stage):
 
         return last_x, last
 
-    def make_vector_block(self, rs, vs):
+    def make_vector_block(self, rs, vs, attention_outputs=None):
+        if attention_outputs is None:
+            attention_outputs = []
+
         residual_in = rs
-        rs = self.AttentionVector(
+        (rs, att) = self.AttentionVector(
             self.make_scorefun(),
             self.make_valuefun(self.n_dim),
             self.make_valuefun(1),
@@ -537,7 +549,8 @@ class GalaCore(flowws.Stage):
             convex_covariants=self.arguments['convex_covariants'],
             linear_mode=self.arguments['linear_mode'],
             linear_terms=self.arguments['linear_terms'],
-        )([rs, vs])
+        )([rs, vs], return_attention=True)
+        attention_outputs.append(att)
 
         if self.residual:
             rs = rs + residual_in

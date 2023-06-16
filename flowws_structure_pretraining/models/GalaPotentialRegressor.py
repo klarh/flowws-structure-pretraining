@@ -78,6 +78,7 @@ class GalaPotentialRegressor(GalaCore):
 
         (last_x, last) = scope['encoded_base']
         inputs = scope['input_symbol']
+        attention_outputs = scope.setdefault('attention_outputs', [])
 
         if self.arguments['transfer_freeze']:
             frozen_model = keras.models.Model(inputs, scope['encoded_base'])
@@ -106,6 +107,7 @@ class GalaPotentialRegressor(GalaCore):
                     'include_normalized_products'
                 ],
             )(arg, return_invariants=True, return_attention=True)
+            attention_outputs.append(att)
         elif bond_reduction in ('mean', 'sum'):
             last = arg[0][1]
         else:

@@ -34,6 +34,7 @@ class GalaBondClassifier(GalaCore):
 
         (last_x, last) = scope['encoded_base']
         inputs = scope['input_symbol']
+        attention_outputs = scope.setdefault('attention_outputs', [])
 
         if self.arguments['transfer_freeze']:
             frozen_model = keras.models.Model(inputs, scope['encoded_base'])
@@ -53,6 +54,7 @@ class GalaBondClassifier(GalaCore):
             covariant_mode=self.covar_mode,
             include_normalized_products=self.arguments['include_normalized_products'],
         )(arg, return_invariants=True, return_attention=True)
+        attention_outputs.append(att)
 
         embedding = last
 

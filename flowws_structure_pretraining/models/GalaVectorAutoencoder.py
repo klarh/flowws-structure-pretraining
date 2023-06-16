@@ -40,6 +40,7 @@ class GalaVectorAutoencoder(GalaCore):
 
         (last_x, last) = scope['encoded_base']
         inputs = scope['input_symbol']
+        attention_outputs = scope.setdefault('attention_outputs', [])
 
         if self.arguments['transfer_freeze']:
             frozen_model = keras.models.Model(inputs, scope['encoded_base'])
@@ -53,7 +54,7 @@ class GalaVectorAutoencoder(GalaCore):
             arg = self.make_layer_inputs(last_x, last)
 
         for _ in range(self.arguments['num_vector_blocks']):
-            last_x = self.make_vector_block(last_x, last)
+            last_x = self.make_vector_block(last_x, last, attention_outputs)
 
         last_x = self.maybe_downcast_vector(last_x)
 

@@ -33,6 +33,7 @@ class GalaBondRegressor(GalaCore):
 
         (last_x, last) = scope['encoded_base']
         inputs = scope['input_symbol']
+        attention_outputs = scope.setdefault('attention_outputs', [])
 
         if self.arguments['transfer_freeze']:
             frozen_model = keras.models.Model(inputs, scope['encoded_base'])
@@ -63,6 +64,8 @@ class GalaBondRegressor(GalaCore):
             include_normalized_products=self.arguments['include_normalized_products'],
             convex_covariants=self.arguments['convex_covariants'],
         )(arg, return_invariants=True, return_attention=True)
+        attention_outputs.append(att)
+
         last_x = self.maybe_downcast_vector(last_x)
 
         scope['input_symbol'] = inputs
