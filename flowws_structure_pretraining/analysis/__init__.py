@@ -13,6 +13,9 @@ EmbeddingDistanceTrajectory = try_to_import(
 )
 EmbeddingPlotter = try_to_import('.EmbeddingPlotter', 'EmbeddingPlotter', __name__)
 EvaluateEmbedding = try_to_import('.EvaluateEmbedding', 'EvaluateEmbedding', __name__)
+ExportAttentionMaps = try_to_import(
+    '.ExportAttentionMaps', 'ExportAttentionMaps', __name__
+)
 NoisyBondVisualizer = try_to_import(
     '.NoisyBondVisualizer', 'NoisyBondVisualizer', __name__
 )
@@ -22,3 +25,4 @@ ShiftIdentificationVisualizer = try_to_import(
     '.ShiftIdentificationVisualizer', 'ShiftIdentificationVisualizer', __name__
 )
 UMAPEmbedding = try_to_import('.UMAPEmbedding', 'UMAPEmbedding', __name__)
+ViewAttentionMap = try_to_import('.ViewAttentionMap', 'ViewAttentionMap', __name__)

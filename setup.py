@@ -59,11 +59,13 @@ module_names = [
     'EmbeddingDistanceTrajectory',
     'EmbeddingPlotter',
     'EvaluateEmbedding',
+    'ExportAttentionMaps',
     'NoisyBondVisualizer',
     'PCAEmbedding',
     'RegressorPlotter',
     'ShiftIdentificationVisualizer',
     'UMAPEmbedding',
+    'ViewAttentionMap',
 ]
 add_subpkg(subpkg, module_names)
 
