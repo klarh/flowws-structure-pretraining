@@ -14,14 +14,15 @@ from tensorflow import keras
 def rescaled_sinlog1pabs(x):
     log1p = tf.math.log(1 + tf.math.abs(x))
     recip = tf.math.reciprocal_no_nan(log1p)
-    return tf.math.sin(x*recip)*log1p
+    return tf.math.sin(x * recip) * log1p
+
 
 LAMBDA_ACTIVATIONS = {
     'gaussian': lambda x: tf.math.exp(-tf.square(x)),
     'leakyswish': lambda x: tf.nn.swish(x) - 1e-2 * tf.nn.swish(-x),
     'log1pswish': lambda x: tf.math.log1p(tf.nn.swish(x)),
     'sin': tf.sin,
-    'sinlog1pabs': lambda x: tf.math.sin(x)*tf.math.log(1 + tf.math.abs(x)),
+    'sinlog1pabs': lambda x: tf.math.sin(x) * tf.math.log(1 + tf.math.abs(x)),
     'rescaled_sinlog1pabs': rescaled_sinlog1pabs,
 }
 
