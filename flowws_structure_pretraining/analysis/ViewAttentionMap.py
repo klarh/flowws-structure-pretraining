@@ -15,6 +15,29 @@ def percentile_remap(x):
     return result
 
 
+class AttentionMapVisual:
+    def __init__(self):
+        pass
+
+    def update(self, metadata, scope, selected_layer):
+        num_layers = metadata['num_attention_layers']
+        self.shapes = [scope['attention_{}_shape'.format(i)] for i in range(num_layers)]
+        self.names = json.loads(scope['layer_names.json'])
+        self.selected_layer = selected_layer
+
+    def draw_matplotlib(self, figure):
+        labels = [
+            '{} ({})'.format(name, shape)
+            for (name, shape) in zip(self.names, self.shapes)
+        ]
+        colors = np.tile([(0.8, 0.4, 0.4, 1)], (len(labels), 1))
+        colors[self.selected_layer] = (0.4, 0.4, 0.8, 1)
+        ys = np.linspace(0, 1, len(labels) + 2, endpoint=True)[1:-1]
+
+        for (y, label, color) in zip(ys, labels, colors):
+            figure.text(0.5, y, label, color=color, ha='center', va='center')
+
+
 @flowws.add_stage_arguments
 class ViewAttentionMap(flowws.Stage):
     """Visualize a set of evaluated attention maps."""
@@ -54,6 +77,10 @@ class ViewAttentionMap(flowws.Stage):
             0, metadata['num_attention_layers'], (True, False)
         )
         self.per_molecule = metadata['per_molecule']
+
+        if not hasattr(self, 'layer_visual'):
+            self.layer_visual = AttentionMapVisual()
+        self.layer_visual.update(metadata, scope, self.arguments['layer'])
 
         key = 'attention_{}'.format(self.arguments['layer'])
         att = scope[key]
@@ -152,6 +179,7 @@ class ViewAttentionMap(flowws.Stage):
         self.scene = draw.Scene(prims, features=features, **scene_kwargs)
 
         scope.setdefault('visuals', []).append(self)
+        scope['visuals'].append(self.layer_visual)
 
     def draw_plato(self):
         return self.scene
