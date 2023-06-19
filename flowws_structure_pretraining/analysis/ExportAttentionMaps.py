@@ -52,6 +52,13 @@ class ExportAttentionMaps(flowws.Stage):
             False,
             help='If True, use atomic type names to export diameters',
         ),
+        Arg(
+            'sort_contexts',
+            None,
+            bool,
+            False,
+            help='If True, sort observations by input context before dumping',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -71,6 +78,7 @@ class ExportAttentionMaps(flowws.Stage):
 
         inputs = scope['input_symbol']
         model = keras.models.Model(inputs, attention_layers[::-1])
+        layer_names = [l.node.outbound_layer.name for l in attention_layers[::-1]]
 
         self.per_molecule = scope.get('per_molecule', False)
         self.x_scale = scope.get('x_scale', 1.0)
@@ -114,18 +122,31 @@ class ExportAttentionMaps(flowws.Stage):
 
             traj.writePath('metadata.json', json.dumps(metadata))
             traj.writePath('type_names.json', json.dumps(type_names))
+            traj.writePath('layer_names.json', json.dumps(layer_names))
             for (data, context, pred) in self.batch(model, dataset, contexts):
                 i += self.write(traj, data, context, pred, i, ref_trajectories)
 
     def batch(self, model, dataset, contexts):
         N = len(dataset[0])
         batch_size = self.arguments['batch_size']
+        sort_contexts = self.arguments['sort_contexts']
+
+        if sort_contexts:
+            ctx_arr = np.array([frozenset(c.items()) for c in contexts], dtype=object)
+            sortidx = np.argsort(ctx_arr)
 
         for i in tqdm(range(0, N, batch_size)):
             sel = slice(i, i + batch_size)
-            x = [v[sel] for v in dataset]
+
+            if sort_contexts:
+                idx = sortidx[sel]
+                x = [v[idx] for v in dataset]
+                ctx = contexts[idx]
+            else:
+                x = [v[sel] for v in dataset]
+                ctx = contexts[sel]
             prediction = model.predict(x, verbose=False, batch_size=batch_size)
-            yield x, contexts[sel], prediction
+            yield x, ctx, prediction
 
     def write(self, traj, data, context, prediction, offset, ref_trajectories):
 
