@@ -69,6 +69,13 @@ class ViewAttentionMap(flowws.Stage):
         ),
         Arg('draw_scale', '-s', float, 1, help='Scale to multiply particle size by'),
         Arg('display_box', '-b', bool, True, help='Display the system box'),
+        Arg(
+            'focus_particle',
+            '-f',
+            int,
+            -1,
+            help='Particle to focus on for 3D attention maps',
+        ),
     ]
 
     def run(self, scope, storage):
@@ -86,8 +93,17 @@ class ViewAttentionMap(flowws.Stage):
         att = scope[key]
         att = att.reshape(scope['{}_shape'.format(key)])
 
+        self.arg_specifications['focus_particle'].valid_values = flowws.Range(
+            -1, 32, (True, False)
+        )
+
+        focused_on = None
         if att.ndim == 3:
-            att = np.mean(att, axis=0)
+            if self.arguments['focus_particle'] >= 0:
+                focused_on = self.arguments['focus_particle'] % len(att)
+                att = att[focused_on]
+            else:
+                att = np.mean(att, axis=0)
 
         positions = scope['position']
         types = scope['type']
@@ -155,6 +171,8 @@ class ViewAttentionMap(flowws.Stage):
         )
         prims.append(edgeprim)
         colors[:, :3] *= np.diag(att)[:, None]
+        if focused_on is not None:
+            colors[focused_on] = (0.5, 0.5, 0.5, 1)
         prim.colors = colors
 
         if 'box' in scope and self.arguments['display_box']:
