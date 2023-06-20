@@ -132,7 +132,8 @@ class ExportAttentionMaps(flowws.Stage):
         sort_contexts = self.arguments['sort_contexts']
 
         if sort_contexts:
-            ctx_arr = np.array([frozenset(c.items()) for c in contexts], dtype=object)
+            ctx_arr = np.empty(len(contexts), dtype=object)
+            ctx_arr[:] = [tuple(sorted((c.items()))) for c in contexts]
             sortidx = np.argsort(ctx_arr)
 
         for i in tqdm(range(0, N, batch_size)):
