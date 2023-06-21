@@ -34,7 +34,7 @@ class AttentionMapVisual:
         colors[self.selected_layer] = (0.4, 0.4, 0.8, 1)
         ys = np.linspace(0, 1, len(labels) + 2, endpoint=True)[1:-1]
 
-        for (y, label, color) in zip(ys, labels, colors):
+        for y, label, color in zip(ys, labels, colors):
             figure.text(0.5, y, label, color=color, ha='center', va='center')
 
 
@@ -75,6 +75,13 @@ class ViewAttentionMap(flowws.Stage):
             int,
             -1,
             help='Particle to focus on for 3D attention maps',
+        ),
+        Arg(
+            'edge_filter',
+            '-e',
+            float,
+            0.5,
+            help='Fraction of most significant edges to take',
         ),
     ]
 
@@ -158,25 +165,26 @@ class ViewAttentionMap(flowws.Stage):
         prim = draw.Spheres(positions=positions, colors=colors, diameters=diameters)
         prims.append(prim)
 
-        ei, ej = np.where(percentile_remap(att) > 0.5)
-        edge_starts = positions[ei]
-        edge_ends = positions[ej]
-        if fbox is not None:
-            edge_ends = edge_starts + fbox.wrap(edge_ends - edge_starts)
-        edge_colors = np.ones((len(edge_starts), 4))
-        if additive_rendering:
-            edge_colors[:, :3] *= att[ei, ej, None] * np.mean(colors[:, :3])
-        else:
-            arg = np.clip(att[ei, ej]*color_scale, 0, 1)
-            edge_colors[:] = plato.cmap.cubehelix(arg, h=1.2)
-        edgeprim = draw.Lines(
-            start_points=edge_starts,
-            end_points=edge_ends,
-            colors=edge_colors,
-            widths=0.125,
-            cap_mode=1,
-        )
-        prims.append(edgeprim)
+        ei, ej = np.where(percentile_remap(att) > self.arguments['edge_filter'])
+        if len(ei):
+            edge_starts = positions[ei]
+            edge_ends = positions[ej]
+            if fbox is not None:
+                edge_ends = edge_starts + fbox.wrap(edge_ends - edge_starts)
+            edge_colors = np.ones((len(edge_starts), 4))
+            if additive_rendering:
+                edge_colors[:, :3] *= att[ei, ej, None] * np.mean(colors[:, :3])
+            else:
+                arg = np.clip(att[ei, ej] * color_scale, 0, 1)
+                edge_colors[:] = plato.cmap.cubehelix(arg, h=1.2)
+            edgeprim = draw.Lines(
+                start_points=edge_starts,
+                end_points=edge_ends,
+                colors=edge_colors,
+                widths=0.125,
+                cap_mode=1,
+            )
+            prims.append(edgeprim)
         if additive_rendering:
             colors[:, :3] *= np.diag(att)[:, None]
         if focused_on is not None:
