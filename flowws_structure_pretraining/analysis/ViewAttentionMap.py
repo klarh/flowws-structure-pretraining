@@ -85,6 +85,9 @@ class ViewAttentionMap(flowws.Stage):
         )
         self.per_molecule = metadata['per_molecule']
 
+        additive_rendering = self.arguments['additive_rendering']
+        color_scale = self.arguments['color_scale']
+
         if not hasattr(self, 'layer_visual'):
             self.layer_visual = AttentionMapVisual()
         self.layer_visual.update(metadata, scope, self.arguments['layer'])
@@ -132,7 +135,7 @@ class ViewAttentionMap(flowws.Stage):
 
         colors = np.ones((len(types), 4))
         colors[:, :3] = plato.cmap.cubeellipse_intensity(types.astype(np.float32))
-        colors[:, :3] *= self.arguments['color_scale']
+        colors[:, :3] *= color_scale
 
         prims = []
         scene_kwargs = {}
@@ -161,7 +164,11 @@ class ViewAttentionMap(flowws.Stage):
         if fbox is not None:
             edge_ends = edge_starts + fbox.wrap(edge_ends - edge_starts)
         edge_colors = np.ones((len(edge_starts), 4))
-        edge_colors[:, :3] *= att[ei, ej, None] * np.mean(colors[:, :3])
+        if additive_rendering:
+            edge_colors[:, :3] *= att[ei, ej, None] * np.mean(colors[:, :3])
+        else:
+            arg = np.clip(att[ei, ej]*color_scale, 0, 1)
+            edge_colors[:] = plato.cmap.cubehelix(arg, h=1.2)
         edgeprim = draw.Lines(
             start_points=edge_starts,
             end_points=edge_ends,
@@ -170,7 +177,8 @@ class ViewAttentionMap(flowws.Stage):
             cap_mode=1,
         )
         prims.append(edgeprim)
-        colors[:, :3] *= np.diag(att)[:, None]
+        if additive_rendering:
+            colors[:, :3] *= np.diag(att)[:, None]
         if focused_on is not None:
             colors[focused_on] = (0.5, 0.5, 0.5, 1)
         prim.colors = colors
