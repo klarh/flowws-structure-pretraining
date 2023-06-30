@@ -50,7 +50,7 @@ class NeighborDistanceNormalization(keras.layers.Layer):
             distances = custom_norm(inputs)
             denominator = self.reduction(distances, mask=mask)
             denominator_inverse = tf.math.reciprocal_no_nan(denominator)
-            scale = self.lengthscale * denominator_inverse[..., None]
+            scale = self.lengthscale * denominator_inverse
         else:
             raise NotImplementedError()
 
