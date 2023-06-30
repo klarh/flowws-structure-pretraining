@@ -30,13 +30,29 @@ class FrameRegressionTask(FrameClassificationTask):
             help='If given, only contexts with the given key set to True will be '
             'used for label normalization',
         ),
+        Arg('secondary_labels', None, [str], help='Additional context labels to load'),
+        Arg(
+            'scale_secondary_labels',
+            None,
+            bool,
+            False,
+            help='If True, rescale all secondary label values with fitted normalization',
+        ),
     ]
 
     def run(self, scope, storage):
         super().run(scope, storage)
+        secondary_labels = self.arguments.get('secondary_labels', [])
+
+        other_ys = []
         if 'context_label' in self.arguments:
             key = self.arguments['context_label']
             ys = [ctx[key] for ctx in scope['x_contexts']]
+            for key in secondary_labels:
+                if key == 'force':
+                    other_ys.append(scope['force_train'])
+                else:
+                    other_ys.append(np.array([ctx[key] for ctx in scope['x_contexts']]))
         else:
             class_remap = np.linspace(0, 1, len(scope['label_remap']))
             ys = class_remap[scope['y_train'][..., 0]]
@@ -51,11 +67,16 @@ class FrameRegressionTask(FrameClassificationTask):
                 key = self.arguments['normalize_labels_context_key']
                 filt = [bool(ctx.get(key, False)) for ctx in scope['x_contexts']]
                 filtered_ys = np.array(ys)[filt]
+                if not len(filtered_ys):
+                    raise ValueError('No values found to normalize by')
                 mu, sigma = np.mean(filtered_ys), np.std(filtered_ys)
             else:
                 mu, sigma = np.mean(ys), np.std(ys)
 
             ys = (np.array(ys) - mu) / sigma
+            if self.arguments['scale_secondary_labels']:
+                for v in other_ys:
+                    v /= sigma
             for dset_name in scope.get('dataset_names', ['validation', 'test']):
                 if dset_name == 'train':
                     # training data will already get handled
@@ -72,7 +93,10 @@ class FrameRegressionTask(FrameClassificationTask):
                 scaled_mae = ScaledMAE(sigma, name='scaled_mae')
                 metrics.append(scaled_mae)
 
-        scope['y_train'] = np.asarray(ys)
+        if other_ys:
+            scope['y_train'] = [np.asarray(ys)] + other_ys
+        else:
+            scope['y_train'] = np.asarray(ys)
         scope['loss'] = 'mse'
         scope['metrics'].remove('accuracy')
         if 'mean_absolute_error' not in scope.setdefault('metrics', []):

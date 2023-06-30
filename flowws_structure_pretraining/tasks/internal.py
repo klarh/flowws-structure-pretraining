@@ -22,6 +22,7 @@ Frame = collections.namedtuple(
         "rijs",
         "tijs",
         "nlist",
+        "forces",
     ],
 )
 
@@ -29,6 +30,7 @@ Frame = collections.namedtuple(
 def process_frame(frame, nlist_generator, max_types):
     box = frame.box
     positions = frame.positions
+    forces = frame.forces
     types = frame.types
     context = frame.context
     nl = nlist_generator(box, positions, types)
@@ -43,7 +45,17 @@ def process_frame(frame, nlist_generator, max_types):
     rijs = freud.box.Box.from_box(box).wrap(rijs)
     tijs = encode_types(types[index_i], types[index_j], None, max_types)
     return Frame(
-        box, positions, types, context, index_i, index_j, weights, rijs, tijs, nl
+        box,
+        positions,
+        types,
+        context,
+        index_i,
+        index_j,
+        weights,
+        rijs,
+        tijs,
+        nl,
+        forces,
     )
 
 
@@ -72,7 +84,7 @@ def pad(xs, max_size, dim=None):
     return np.asarray(result)
 
 
-def index_frame(frame, indices, max_size, type_dim):
+def index_frame(frame, indices, max_size, type_dim, include_forces=False):
     all_bonds = []
     for i in indices:
         bond_start = bisect.bisect_left(frame.index_i, i)
@@ -87,6 +99,9 @@ def index_frame(frame, indices, max_size, type_dim):
         pad([frame.tijs[b] for b in all_bonds], max_size, type_dim),
         pad([frame.weights[b] for b in all_bonds], max_size, None),
     ]
+    if include_forces:
+        forces = frame.forces[indices] if frame.forces is not None else None
+        result.append(forces)
     return tuple(result)
 
 
@@ -147,7 +162,12 @@ class EnvironmentGenerator:
         tijs = frame.tijs[bonds]
         weights = frame.weights[bonds]
 
-        return (rijs, tijs, weights), frame.context
+        context = frame.context
+        if frame.forces is not None:
+            context = dict(frame.context)
+            context['force'] = frame.forces[particle]
+
+        return (rijs, tijs, weights), context
 
 
 class TaskTransformer(flowws.Stage):
@@ -238,7 +258,12 @@ class TaskTransformer(flowws.Stage):
                     tijs = frame.tijs[bonds]
                     weights = frame.weights[bonds]
 
-                    yield (rijs, tijs, weights), frame.context
+                    context = frame.context
+                    if frame.forces is not None:
+                        context = dict(frame.context)
+                        context['force'] = frame.forces[i]
+
+                    yield (rijs, tijs, weights), context
 
             if evaluate:
                 done = True

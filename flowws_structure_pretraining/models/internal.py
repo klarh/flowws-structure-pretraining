@@ -87,8 +87,9 @@ class NeighborDistanceNormalization(keras.layers.Layer):
 class NeighborhoodReduction(keras.layers.Layer):
     """Reduce values over the local neighborhood axis."""
 
-    def __init__(self, mode='sum', *args, **kwargs):
+    def __init__(self, mode='sum', keepdims=True, *args, **kwargs):
         self.mode = mode
+        self.keepdims = keepdims
 
         super().__init__(*args, **kwargs)
 
@@ -99,13 +100,15 @@ class NeighborhoodReduction(keras.layers.Layer):
             result = tf.where(mask, inputs, tf.zeros_like(inputs))
 
         if self.mode == 'sum':
-            return tf.math.reduce_sum(result, axis=-2)
+            return tf.math.reduce_sum(result, axis=-2, keepdims=self.keepdims)
         elif self.mode == 'soft_max':
-            return tf.math.reduce_logsumexp(result, axis=-2)
+            return tf.math.reduce_logsumexp(result, axis=-2, keepdims=self.keepdims)
         elif self.mode == 'mean':
-            numerator = tf.math.reduce_sum(result, axis=-2)
+            numerator = tf.math.reduce_sum(result, axis=-2, keepdims=self.keepdims)
             if mask is not None:
-                denominator = tf.math.reduce_sum(tf.cast(mask, tf.float32), axis=-2)
+                denominator = tf.math.reduce_sum(
+                    tf.cast(mask, tf.float32), axis=-2, keepdims=self.keepdims
+                )
                 denominator = tf.cast(denominator, tf.float32)
                 denominator_inverse = tf.math.reciprocal_no_nan(denominator)
             else:
@@ -118,11 +121,12 @@ class NeighborhoodReduction(keras.layers.Layer):
         if mask is None:
             return mask
 
-        return tf.math.reduce_any(mask, axis=-1)
+        return tf.math.reduce_any(mask, axis=-1, keepdims=self.keepdims)
 
     def get_config(self):
         result = super().get_config()
         result['mode'] = self.mode
+        result['keepdims'] = self.keepdims
         return result
 
 

@@ -6,6 +6,7 @@ import os
 import flowws
 from flowws import Argument as Arg
 import garnett
+import gtar
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -39,9 +40,29 @@ def frame_wrapper(fname, trajectory_wrapper, index):
     return traj[index]
 
 
+class GTARPropertyLoader:
+    shapes = dict(
+        force=3,
+    )
+
+    def __init__(self, fname):
+        self.traj = gtar.GTAR(fname, 'r')
+        (_, self.frames) = self.traj.framesWithRecordsNamed('position')
+        self.records = {rec.getName(): rec for rec in self.traj.getRecordTypes()}
+
+    def get(self, index, name):
+        frame = self.frames[index]
+        record = self.records[name]
+        result = self.traj.getRecord(record, frame)
+        if name in self.shapes:
+            result = result.reshape((-1, self.shapes[name]))
+        return result
+
+
 class LazyFrame:
-    def __init__(self, frame_cache, key, context, type_map):
+    def __init__(self, frame_cache, key, context, type_map, gtar_cache):
         self.frame_cache = frame_cache
+        self.gtar_cache = gtar_cache
         self.key = key
         self.context = context
         self.type_map = type_map
@@ -62,6 +83,12 @@ class LazyFrame:
     @property
     def frame(self):
         return self.frame_cache(*self.key)
+
+    @property
+    def forces(self):
+        if self.gtar_cache is None:
+            return None
+        return self.gtar_cache(self.key[0]).get(key[2], 'force')
 
     @property
     def positions(self):
@@ -160,9 +187,18 @@ class FileLoader(flowws.Stage):
             False,
             help='If True, scan all frames for types and print the result',
         ),
+        Arg(
+            'load_forces',
+            None,
+            bool,
+            False,
+            help='If True, also load per-particle forces',
+        ),
     ]
 
-    Frame = collections.namedtuple('Frame', ['positions', 'box', 'types', 'context'])
+    Frame = collections.namedtuple(
+        'Frame', ['positions', 'box', 'types', 'context', 'forces']
+    )
 
     def run(self, scope, storage):
         frame_slice = slice(
@@ -202,6 +238,13 @@ class FileLoader(flowws.Stage):
 
         for fname in self.arguments.get('filenames', []):
             context = dict(source='garnett', fname=fname)
+
+            prop_loader = None
+            if self.arguments['load_forces'] and any(
+                fname.endswith(suf) for suf in ['.zip', '.tar', '.sqlite']
+            ):
+                prop_loader = GTARPropertyLoader(fname)
+
             with garnett.read(fname) as traj:
                 indices = list(range(len(traj)))[frame_slice]
                 for i in indices:
@@ -234,11 +277,16 @@ class FileLoader(flowws.Stage):
                         logger.warning(msg)
                         warned_about_types = True
 
+                    forces = None
+                    if prop_loader is not None:
+                        forces = prop_loader.get(i, 'force')
+
                     frame = self.Frame(
                         frame.position,
                         frame.box.get_box_array(),
                         types,
                         dict(frame_context),
+                        forces,
                     )
                     found_types = type_names
                     max_types = max(max_types, int(np.max(frame.types)) + 1)
@@ -264,6 +312,11 @@ class FileLoader(flowws.Stage):
         self.lazy_files = functools.lru_cache(
             maxsize=self.arguments['lazy_file_limit']
         )(trajectory_wrapper)
+        self.lazy_gtar_files = None
+        if self.arguments['load_forces']:
+            self.lazy_gtar_files = functools.lru_cache(
+                maxsize=self.arguments['lazy_file_limit']
+            )(GTARPropertyLoader)
         self.lazy_frames = functools.lru_cache(
             maxsize=self.arguments['lazy_cache_size']
         )(frame_wrapper)
@@ -274,6 +327,8 @@ class FileLoader(flowws.Stage):
             for i in indices:
                 context['frame'] = i
                 key = (fname, self.lazy_files, i)
-                frame = LazyFrame(self.lazy_frames, key, context, self.type_map)
+                frame = LazyFrame(
+                    self.lazy_frames, key, context, self.type_map, self.lazy_gtar_files
+                )
                 all_frames.append(frame)
         scope['type_name_map'] = self.type_map

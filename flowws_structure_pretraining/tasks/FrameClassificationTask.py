@@ -104,7 +104,7 @@ class FrameClassificationTask(flowws.Stage):
 
         rng = np.random.default_rng(self.arguments['seed'])
 
-        rs, ts, ws, ys, ctxs = [], [], [], [], []
+        rs, ts, ws, ys, ctxs, fs = [], [], [], [], [], []
         for frame in frames:
             context = dict(frame.context)
             for key in self.arguments.get('delete_context_keys', []):
@@ -118,18 +118,26 @@ class FrameClassificationTask(flowws.Stage):
                 if not len(samp):
                     continue
 
-            (rijs, tijs, wijs) = index_frame(frame, samp, pad_size, 2 * max_types)
+            (rijs, tijs, wijs, forces) = index_frame(
+                frame, samp, pad_size, 2 * max_types, True
+            )
+
+            if not len(rijs):
+                continue
 
             rs.append(rijs)
             ts.append(tijs)
             ws.append(wijs)
             ys.append(np.full_like(rijs[..., :1], encoded_type, dtype=np.int32))
             ctxs.extend(len(rijs) * [frame.context])
+            fs.append(forces)
 
         rs = np.concatenate(rs, axis=0)
         ts = np.concatenate(ts, axis=0)
         ws = np.concatenate(ws, axis=0)
         ys = np.concatenate(ys, axis=0)
+        if len(fs) and fs[0] is not None:
+            fs = np.concatenate(fs, axis=0)
 
         rs /= x_scale
 
@@ -142,6 +150,8 @@ class FrameClassificationTask(flowws.Stage):
         ws = ws[shuf]
         ys = ys[shuf]
         ctxs = np.array(ctxs, dtype=object)[shuf]
+        if len(fs) and fs[0] is not None:
+            fs = fs[shuf]
 
         if self.arguments['per_cloud']:
             ys = ys[..., 0, :].copy()
@@ -241,6 +251,7 @@ class FrameClassificationTask(flowws.Stage):
             scope.pop(key, None)
         scope['x_train'] = x
         scope['y_train'] = y
+        scope['force_train'] = fs
         scope['x_scale'] = x_scale
         scope['x_contexts'] = ctxs
         scope['loss'] = loss
