@@ -1,5 +1,9 @@
+import logging
+
 import tensorflow as tf
 from tensorflow import keras
+
+logger = logging.getLogger(__name__)
 
 
 @tf.custom_gradient
@@ -19,7 +23,16 @@ class GradientLayer(keras.layers.Layer):
     """Calculates the gradient of one input with respect to the other."""
 
     def call(self, inputs):
-        return tf.gradients(inputs[0], inputs[1])
+        result = tf.gradients(inputs[0], inputs[1])
+        if result[0] is None:
+            msg = (
+                'Shortcutting gradient calculation in GradientLayer; '
+                'this can happen while building the model, but should not '
+                'happen during training'
+            )
+            logger.warning(msg)
+            return tf.zeros_like(inputs[1])
+        return result
 
 
 class NeighborDistanceNormalization(keras.layers.Layer):
