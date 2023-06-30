@@ -3,6 +3,15 @@ from flowws import Argument as Arg
 import numpy as np
 
 
+def filter_nested_values(vals, filt):
+    if isinstance(vals, list):
+        return [filter_nested_values(v, filt) for v in vals]
+    elif isinstance(vals, tuple):
+        return tuple(filter_nested_values(v, filt) for v in vals)
+    else:
+        return vals[filt]
+
+
 @flowws.add_stage_arguments
 class ContextSplitDataset(flowws.Stage):
     """Split datasets based on a value in the context dictionary"""
@@ -23,7 +32,7 @@ class ContextSplitDataset(flowws.Stage):
         datasets = {}
         for i, name in enumerate(dataset_names):
             filt = np.where(dataset_targets == i)[0]
-            dataset = [v[filt] for v in x], y[filt]
+            dataset = filter_nested_values((x, y), filt)
             ctx = contexts[filt]
 
             scope['{}_data'.format(name)] = dataset
