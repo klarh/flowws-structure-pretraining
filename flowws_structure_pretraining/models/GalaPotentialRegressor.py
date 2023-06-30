@@ -121,7 +121,9 @@ class GalaPotentialRegressor(GalaCore):
         )(last)
 
         if bond_reduction in ('mean', 'sum'):
-            energy_prediction = last = NeighborhoodReduction(bond_reduction)(last)
+            energy_prediction = last = NeighborhoodReduction(
+                bond_reduction, name='reduced_energy'
+            )(last)
 
         if scope.get('per_molecule', False) and not self.arguments['center_of_mass']:
             reduction_mode = scope.get('molecule_reduction', 'sum')
@@ -130,6 +132,13 @@ class GalaPotentialRegressor(GalaCore):
             )(last)
         total_sum = SumLayer()(last)
         force_prediction = GradientLayer(name='force')((-total_sum, inputs[0]))[0]
+
+        if not scope.get('per_molecule', False):
+            # negate the sum since the gradient was taken wrt
+            # neighbor coordinates already
+            force_prediction = NeighborhoodReduction(
+                'sum', name='bond_sum_force', keepdims=False
+            )(-force_prediction)
 
         outputs = []
         if self.arguments['predict_energy']:
