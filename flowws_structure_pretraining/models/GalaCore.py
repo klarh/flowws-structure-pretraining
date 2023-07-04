@@ -361,7 +361,7 @@ class GalaCore(flowws.Stage):
                         self.arguments['direct_scale_equivariant_embedding']
                         or self.arguments['gaussian_scale_equivariant_embedding']
                     ):
-                        embedding_scale = tf.math.reciprocal(embedding_scale)
+                        embedding_scale = tf.math.reciprocal_no_nan(embedding_scale)
                     embedding = keras.layers.Dense(
                         self.n_dim, name='distance_embedding'
                     )(embedding_scale)
