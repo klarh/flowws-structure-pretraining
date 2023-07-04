@@ -29,16 +29,25 @@ class Frame2Molecule(flowws.Stage):
             help='If given, only contexts with the given key set to True will be '
             'used for label normalization',
         ),
+        Arg('secondary_labels', None, [str], help='Additional context labels to load'),
+        Arg(
+            'scale_secondary_labels',
+            None,
+            bool,
+            False,
+            help='If True, rescale all secondary label values with fitted normalization',
+        ),
     ]
 
     def run(self, scope, storage):
         self.context_label = self.arguments['context_label']
         self.max_types = scope.get('max_types', 1)
+        secondary_labels = self.arguments.get('secondary_labels', [])
 
         xs, ts, ys, ctxs = [], [], [], []
         max_size = 0
         for frame in scope['loaded_frames']:
-            (x, t, y) = self.encode(frame)
+            (x, t, y) = self.encode(frame, secondary_labels)
             xs.append(x)
             ts.append(t)
             ys.append(y)
@@ -51,11 +60,25 @@ class Frame2Molecule(flowws.Stage):
         ts_array = np.zeros((len(xs), max_size, self.max_types))
         ys_array = np.zeros((len(xs), 1))
         ctx_array = np.array(ctxs, dtype=object)
+        secondary_arrays = []
+        for key in secondary_labels:
+            if key == 'force':
+                secondary_arrays.append(np.zeros_like(xs_array))
+            else:
+                secondary_arrays.append(np.zeros_like(ys_array))
 
         for i, (x, t, y) in enumerate(zip(xs, ts, ys)):
             xs_array[i, : len(x)] = x
             ts_array[i, : len(x)] = t
-            ys_array[i] = y
+            if not secondary_labels:
+                ys_array[i] = y
+            else:
+                ys_array[i], y_rest = y
+                for j, key in enumerate(secondary_labels):
+                    if key == 'force':
+                        secondary_arrays[j][i, : len(x)] = y_rest[j]
+                    else:
+                        secondary_arrays[j][i] = y_rest[j]
 
         if self.arguments['normalize_labels']:
             from flowws_keras_geometry.data.internal import ScaledMAE
@@ -73,6 +96,10 @@ class Frame2Molecule(flowws.Stage):
 
             ys_array -= mu
             ys_array /= sigma
+
+            if self.arguments['scale_secondary_labels']:
+                for v in secondary_arrays:
+                    v /= sigma
             scope['normalize_label_mean'] = mu
             scope['normalize_label_std'] = sigma
 
@@ -81,6 +108,9 @@ class Frame2Molecule(flowws.Stage):
                 scaled_mae = ScaledMAE(sigma, name='scaled_mae')
                 metrics.append(scaled_mae)
 
+        if secondary_arrays:
+            ys_array = [ys_array] + secondary_arrays
+
         scope['x_train'] = (xs_array, ts_array)
         scope['y_train'] = ys_array
         scope['x_contexts'] = ctx_array
@@ -88,7 +118,15 @@ class Frame2Molecule(flowws.Stage):
         if 'mean_absolute_error' not in scope.setdefault('metrics', []):
             scope['metrics'].append('mean_absolute_error')
 
-    def encode(self, frame):
+    def encode(self, frame, secondary_labels):
         y = frame.context[self.context_label]
+        if secondary_labels:
+            other_labels = []
+            for key in secondary_labels:
+                if key == 'force':
+                    other_labels.append(frame.forces)
+                else:
+                    other_labels.append(frame.context[key])
+            y = (y, other_labels)
         t = np.eye(self.max_types)[frame.types]
         return (frame.positions, t, y)

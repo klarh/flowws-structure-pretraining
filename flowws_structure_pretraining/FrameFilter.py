@@ -73,8 +73,11 @@ class FrameFilter(flowws.Stage):
             final_filter[forced_indices] = True
 
         positions = frame.positions[final_filter]
+        forces = None if frame.forces is None else frame.forces[final_filter]
 
         if self.arguments['center']:
             positions = fbox.center(positions)
 
-        return frame._replace(positions=positions, types=frame.types[final_filter])
+        return frame._replace(
+            positions=positions, types=frame.types[final_filter], forces=forces
+        )
