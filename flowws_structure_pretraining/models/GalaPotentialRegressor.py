@@ -131,7 +131,9 @@ class GalaPotentialRegressor(GalaCore):
                 reduction_mode, name='energy'
             )(last)
         total_sum = SumLayer()(last)
-        force_prediction = GradientLayer(name='force')((-total_sum, inputs[0]))[0]
+        force_prediction = GradientLayer(name='force')((-total_sum, inputs[0]))
+        if isinstance(force_prediction, list):
+            force_prediction = force_prediction[0]
 
         if not scope.get('per_molecule', False):
             # negate the sum since the gradient was taken wrt
