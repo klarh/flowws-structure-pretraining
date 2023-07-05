@@ -252,6 +252,8 @@ class TaskTransformer(flowws.Stage):
                 for i in range(len(frame.positions)):
                     bond_start = bisect.bisect_left(frame.index_i, i)
                     bond_end = bisect.bisect_left(frame.index_i, i + 1)
+                    if bond_start == bond_end:
+                        continue
                     bonds = slice(bond_start, bond_end)
 
                     rijs = frame.rijs[bonds]
