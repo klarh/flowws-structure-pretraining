@@ -89,6 +89,7 @@ module_names = [
     'DenoisingTaskTransformer',
     'FrameClassificationTask',
     'FrameRegressionTask',
+    'FrameRegressionTaskTransformer',
     'NearBondTask',
     'NearBondTaskTransformer',
     'NearestBondTask',

@@ -4,6 +4,7 @@ from .DenoisingTask import DenoisingTask
 from .DenoisingTaskTransformer import DenoisingTaskTransformer
 from .FrameClassificationTask import FrameClassificationTask
 from .FrameRegressionTask import FrameRegressionTask
+from .FrameRegressionTaskTransformer import FrameRegressionTaskTransformer
 from .NearBondTask import NearBondTask
 from .NearBondTaskTransformer import NearBondTaskTransformer
 from .NearestBondTask import NearestBondTask
