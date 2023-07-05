@@ -64,14 +64,14 @@ class LazyFrame:
         self.frame_cache = frame_cache
         self.gtar_cache = gtar_cache
         self.key = key
-        self.context = context
+        self.context = dict(context)
         self.type_map = type_map
 
     def _replace(self, **kwargs):
         if 'context' in kwargs:
-            self.context = kwargs.pop('context')
+            self.context = dict(kwargs.pop('context'))
             if not kwargs:
-                return
+                return self
 
         msg = (
             'Overwriting values on lazily-loaded frames is not supported. '
@@ -88,7 +88,7 @@ class LazyFrame:
     def forces(self):
         if self.gtar_cache is None:
             return None
-        return self.gtar_cache(self.key[0]).get(key[2], 'force')
+        return self.gtar_cache(self.key[0]).get(self.key[2], 'force')
 
     @property
     def positions(self):
