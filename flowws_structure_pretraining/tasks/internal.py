@@ -235,7 +235,12 @@ class TaskTransformer(flowws.Stage):
         if self.per_bond_label:
             y = pad(ys, max_size, ys[0].shape[-1] if ys[0].ndim > 1 else None)
         else:
-            y = np.array(ys)
+            if isinstance(ys[0], (list, tuple)):
+                y = []
+                for i in range(len(ys[0])):
+                    y.append(np.array([v[i] for v in ys]))
+            else:
+                y = np.array(ys)
 
         return x, y
 
