@@ -176,13 +176,21 @@ class TaskTransformer(flowws.Stage):
         Arg(
             'pool_size', '-p', int, 512, help='Number of batches to mix in memory pools'
         ),
+        Arg(
+            'whole_frame',
+            None,
+            bool,
+            False,
+            help='If True, use entire frame\'s data as a labeled sample',
+        ),
     ]
 
     def run(self, scope, storage):
         max_types = scope['max_types']
         self.loaded_frames = scope['loaded_frames']
-        nlist_generator = scope['nlist_generator']
+        nlist_generator = scope.get('nlist_generator', None)
         self.use_weights = scope.get('use_bond_weights', False)
+        self.frame_modifiers = scope.get('frame_modifiers', [])
 
         for i, name in enumerate(['train', 'validation', 'test']):
             frame_indices = scope.get('{}_frames'.format(name), None)
@@ -203,6 +211,8 @@ class TaskTransformer(flowws.Stage):
             seed *= 2
             pooled_generator = data_pool.sample(new_generator, seed)
             scope[target_name] = map(self.collate_batch, pooled_generator)
+
+        scope['per_molecule'] = self.arguments['whole_frame']
 
     def collate_batch(self, batch):
         rijs, tijs, wijs, ys = [], [], [], []
@@ -238,13 +248,18 @@ class TaskTransformer(flowws.Stage):
             if isinstance(ys[0], (list, tuple)):
                 y = []
                 for i in range(len(ys[0])):
-                    y.append(np.array([v[i] for v in ys]))
+                    values = [v[i] for v in ys]
+                    if ys[0][i].ndim > 1:
+                        y.append(pad(values, max_size, values[0].shape[-1]))
+                    else:
+                        y.append(np.array(values))
             else:
                 y = np.array(ys)
 
         return x, y
 
     def load(self, indices, nlist_generator, max_types, evaluate, seed):
+        whole_frame = self.arguments['whole_frame']
         rng = np.random.default_rng(seed)
         frames = np.array(indices, dtype=object)
         done = False
@@ -253,24 +268,36 @@ class TaskTransformer(flowws.Stage):
             rng.shuffle(frames)
             for description in frames:
                 frame = self.loaded_frames[description.index]
-                frame = process_frame(frame, nlist_generator, max_types)
-                for i in range(len(frame.positions)):
-                    bond_start = bisect.bisect_left(frame.index_i, i)
-                    bond_end = bisect.bisect_left(frame.index_i, i + 1)
-                    if bond_start == bond_end:
-                        continue
-                    bonds = slice(bond_start, bond_end)
+                if not whole_frame:
+                    frame = process_frame(frame, nlist_generator, max_types)
+                for mod in self.frame_modifiers:
+                    frame = mod(frame)
 
-                    rijs = frame.rijs[bonds]
-                    tijs = frame.tijs[bonds]
-                    weights = frame.weights[bonds]
+                if whole_frame:
+                    rs = frame.positions
+                    ts = np.eye(max_types)[frame.types]
+                    weights = None
+                    context = dict(frame.context)
+                    context['force'] = frame.forces
+                    yield (rs, ts, weights), context
+                else:
+                    for i in range(len(frame.positions)):
+                        bond_start = bisect.bisect_left(frame.index_i, i)
+                        bond_end = bisect.bisect_left(frame.index_i, i + 1)
+                        if bond_start == bond_end:
+                            continue
+                        bonds = slice(bond_start, bond_end)
 
-                    context = frame.context
-                    if frame.forces is not None:
-                        context = dict(frame.context)
-                        context['force'] = frame.forces[i]
+                        rijs = frame.rijs[bonds]
+                        tijs = frame.tijs[bonds]
+                        weights = frame.weights[bonds]
 
-                    yield (rijs, tijs, weights), context
+                        context = frame.context
+                        if frame.forces is not None:
+                            context = dict(frame.context)
+                            context['force'] = frame.forces[i]
+
+                        yield (rijs, tijs, weights), context
 
             if evaluate:
                 done = True

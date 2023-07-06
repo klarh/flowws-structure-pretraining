@@ -45,10 +45,13 @@ class FrameFilter(flowws.Stage):
         self.whitelist_types = np.array([self.type_map[t] for t in whitelist_types])
         self.forced_bond_types = np.array([self.type_map[t] for t in forced_bond_types])
 
-        frames = []
-        for frame in scope['loaded_frames']:
-            frames.append(self.filter(frame))
-        scope['loaded_frames'] = frames
+        if scope.get('lazy_frames', False):
+            scope.setdefault('frame_modifiers', []).append(self.filter)
+        else:
+            frames = []
+            for frame in scope['loaded_frames']:
+                frames.append(self.filter(frame))
+            scope['loaded_frames'] = frames
 
     def filter(self, frame):
         final_filter = np.isin(frame.types, self.whitelist_types)

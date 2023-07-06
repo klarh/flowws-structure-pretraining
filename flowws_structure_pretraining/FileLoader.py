@@ -308,6 +308,7 @@ class FileLoader(flowws.Stage):
             msg = '"type_names" must be provided in-scope for lazy loading of frames'
             raise KeyError(msg)
         scope['max_types'] = len(self.type_map)
+        scope['lazy_frames'] = True
 
         self.lazy_files = functools.lru_cache(
             maxsize=self.arguments['lazy_file_limit']
