@@ -396,7 +396,7 @@ class GalaCore(flowws.Stage):
     def maybe_expand_molecule(self, scope, last_x, last):
         if scope.get('per_molecule', False):
             if self.arguments['center_of_mass']:
-                center = NeighborhoodReduction('mean')(last_x)[..., None, :]
+                center = NeighborhoodReduction('mean')(last_x)
                 last_x = last_x - center
             else:
                 last_x = PairwiseVectorDifference()(last_x)
