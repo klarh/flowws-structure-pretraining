@@ -5,7 +5,7 @@ import flowws
 from flowws import Argument as Arg
 import numpy as np
 
-from .internal import encode_types
+from .internal import encode_types, pad, process_frame, EnvironmentGenerator
 from .point_groups import filter_discrete, PointGroup
 
 
@@ -362,6 +362,7 @@ class PointGroupTask(flowws.Stage):
     ]
 
     def run(self, scope, storage):
+        self.use_weights = scope.get('use_bond_weights', False)
         self.dataset = SubgroupDataset(
             self.arguments['n_max'],
             self.arguments['sym_max'],
@@ -383,12 +384,25 @@ class PointGroupTask(flowws.Stage):
         scope['validation_generator'] = self.dataset.validation_generator
         scope['test_generator'] = self.dataset.test_generator
 
-        scope['max_types'] = self.arguments['type_max']
-        scope['type_embedding_size'] = (
+        max_types = scope['max_types'] = self.arguments['type_max']
+        self.type_dim = scope['type_embedding_size'] = (
             2 * self.arguments['type_max']
             if self.arguments['sum_diff_types']
             else self.arguments['type_max']
         )
+
+        nlist_generator = scope['nlist_generator']
+        frames = []
+        for frame in scope.get('loaded_frames', []):
+            frame = process_frame(frame, nlist_generator, max_types)
+            frames.append(frame)
+
+        env_gen = EnvironmentGenerator(frames)
+        scope['data_generator'] = self.batch_generator(
+            env_gen,
+            subsample=self.arguments.get('subsample', 1),
+        )
+
         scope['num_classes'] = len(self.dataset.subgroup_map.column_names)
         scope['per_cloud'] = True
         scope['multilabel'] = self.arguments['multilabel']
@@ -400,3 +414,52 @@ class PointGroupTask(flowws.Stage):
         scope['multilabel_softmax'] = True
         scope['loss'] = 'sparse_categorical_crossentropy'
         scope.setdefault('metrics', []).append('accuracy')
+
+    def batch_generator(
+        self,
+        env_gen,
+        round_neighbors=4,
+        subsample=None,
+    ):
+        env_gen = env_gen.sample(0, False, subsample)
+        x_scale = 1.0
+        batch_size = self.arguments['batch_size']
+        done = False
+
+        while not done:
+            rs, vs, ys, ws, ctxs = [], [], [], [], []
+            max_size = 0
+            while len(rs) < batch_size:
+                try:
+                    ((r, v, w), context) = next(env_gen)
+                except StopIteration:
+                    done = True
+                    break
+                ctxs.append(context)
+
+                y = r
+                x = r.copy()
+
+                x /= x_scale
+                y /= x_scale
+
+                max_size = max(max_size, len(r))
+                rs.append(x)
+                vs.append(v)
+                ys.append(y)
+                ws.append(w)
+
+            max_size = (
+                (max_size + round_neighbors - 1) // round_neighbors * round_neighbors
+            )
+            x = (
+                pad(rs, max_size, 3),
+                pad(vs, max_size, self.type_dim),
+                pad(ws, max_size, None),
+            )
+            if not self.use_weights:
+                x = x[:-1]
+
+            if not len(x[0]):
+                return
+            yield x, pad(ys, max_size, 3), ctxs
