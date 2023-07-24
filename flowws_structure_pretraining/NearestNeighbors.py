@@ -1,3 +1,5 @@
+import collections
+
 import flowws
 from flowws import Argument as Arg
 import freud
@@ -38,6 +40,10 @@ class NearestNeighbors(flowws.Stage):
     ]
 
     def run(self, scope, storage):
+        if 'type_name_map' not in scope:
+            type_map = scope['type_name_map'] = collections.defaultdict(
+                lambda: len(type_map)
+            )
         self.type_map = scope['type_name_map']
         center_types = set(self.arguments.get('center_types', []))
         forced_bond_types = set(self.arguments.get('forced_bond_types', []))
