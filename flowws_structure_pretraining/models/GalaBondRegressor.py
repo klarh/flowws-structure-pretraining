@@ -40,14 +40,11 @@ class GalaBondRegressor(GalaCore):
             frozen_model.trainable = False
             (last_x, last) = frozen_model(inputs)
 
-        if 'equivariant_rescale_factor' in scope:
-            last_x = last_x / scope['equivariant_rescale_factor']
-
         if self.arguments['drop_geometric_embeddings']:
             arg = [last_x, last]
             arg[0] = self.maybe_upcast_vector(scope['input_symbol'][0])
             if 'equivariant_rescale_factor' in scope:
-                arg[0] = arg[0] / scope['equivariant_rescale_factor']
+                arg[0] = arg[0] * scope['equivariant_rescale_factor']
         else:
             arg = self.make_layer_inputs(last_x, last)
         (last_x, ivs, att) = self.AttentionVector(
@@ -65,6 +62,9 @@ class GalaBondRegressor(GalaCore):
             convex_covariants=self.arguments['convex_covariants'],
         )(arg, return_invariants=True, return_attention=True)
         attention_outputs.append(att)
+
+        if 'equivariant_rescale_factor' in scope:
+            last_x = last_x / scope['equivariant_rescale_factor']
 
         last_x = self.maybe_downcast_vector(last_x)
 
