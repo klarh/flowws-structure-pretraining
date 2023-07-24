@@ -28,7 +28,9 @@ class PyriodicLoader(flowws.Stage):
         ),
     ]
 
-    Frame = collections.namedtuple('Frame', ['positions', 'box', 'types', 'context'])
+    Frame = collections.namedtuple(
+        'Frame', ['positions', 'box', 'types', 'context', 'forces']
+    )
 
     def run(self, scope, storage):
         all_frames = scope.setdefault('loaded_frames', [])
@@ -58,8 +60,13 @@ class PyriodicLoader(flowws.Stage):
                             noise=noise,
                         )
                     all_frames.append(
-                        self.Frame(frame.positions, frame.box, frame.types, context)
+                        self.Frame(
+                            frame.positions, frame.box, frame.types, context, None
+                        )
                     )
                     max_types = max(max_types, int(np.max(frame.types)) + 1)
 
         scope['max_types'] = max_types
+        self.type_map = scope.setdefault(
+            'type_name_map', collections.defaultdict(lambda: len(self.type_map))
+        )
