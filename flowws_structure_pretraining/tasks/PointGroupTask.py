@@ -359,6 +359,7 @@ class PointGroupTask(flowws.Stage):
             1e-2,
             help='Distance to use for deduplicating symmetrized points',
         ),
+        Arg('subsample', None, float, help='Take only the given fraction of data'),
     ]
 
     def run(self, scope, storage):
