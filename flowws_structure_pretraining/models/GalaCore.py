@@ -353,7 +353,7 @@ class GalaCore(flowws.Stage):
                 last_x, rescale = NeighborDistanceNormalization(norm_mode, scale, True)(
                     last_x
                 )
-                scope['equivariant_rescale_factor'] = rescale[..., None]
+                scope['equivariant_rescale_factor'] = rescale
 
                 if self.arguments.get('scale_equivariant_embedding', None):
                     embedding_scale = rescale
