@@ -232,3 +232,12 @@ class ZeroMaskingLayer(keras.layers.Layer):
     def compute_mask(self, inputs, mask=None):
         mask = tf.reduce_any(tf.not_equal(inputs, 0), axis=-1)
         return mask
+
+
+class IdentityLayer(keras.layers.Layer):
+    def __init__(self, *args, **kwargs):
+        self.supports_masking = True
+        super().__init__(*args, **kwargs)
+
+    def call(self, inputs):
+        return inputs

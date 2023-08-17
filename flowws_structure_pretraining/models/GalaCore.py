@@ -1,3 +1,4 @@
+from .internal import IdentityLayer
 from .internal import NeighborDistanceNormalization, NeighborhoodReduction
 from .internal import NoiseInjector
 from .internal import PairwiseVectorDifference, PairwiseVectorDifferenceSum
@@ -383,6 +384,10 @@ class GalaCore(flowws.Stage):
             last_x = self.maybe_upcast_vector(last_x)
             for _ in range(num_blocks):
                 last_x, last = self.make_block(last_x, last, w_in, attention_outputs)
+
+            # pass both quantities through an identity layer to make
+            # sure all weights get saved later
+            (last_x, last) = IdentityLayer()((last_x, last))
 
             scope['encoded_base'] = (last_x, last)
 
