@@ -24,12 +24,21 @@ class AutoencoderVisualizer(flowws.Stage):
             (float, float, float, float),
             help='Color to use for the predicted positions',
         ),
+        Arg('dataset_name', '-d', str, 'data', help='Dataset name to use'),
     ]
 
     def run(self, scope, storage):
         self.scope = scope
 
-        x, y = self.data_source
+        dataset_name = self.arguments['dataset_name']
+        self.static_name = 'x_{}'.format(dataset_name)
+        self.static_label_name = 'y_{}'.format(dataset_name)
+        self.generator_name = '{}_generator'.format(dataset_name)
+
+        try:
+            x, y = self.data_source
+        except ValueError:
+            x, y, _ = self.data_source
 
         self.arg_specifications['frame'].valid_values = flowws.Range(
             0, len(x[0]), (True, False)
@@ -45,25 +54,25 @@ class AutoencoderVisualizer(flowws.Stage):
         s = slice(self.arguments['frame'], self.arguments['frame'] + 1)
         pred = scope['model'].predict([v[s] for v in x])
 
-        prediction = pred[0] * scope['x_scale']
-        trueval = y[s][0] * scope['x_scale']
+        prediction = pred[0].squeeze() * scope['x_scale']
+        trueval = y[s][0].squeeze() * scope['x_scale']
 
         colors = np.repeat([prediction_color, true_color], len(trueval), axis=0)
         scope['color'] = colors
         scope['position'] = np.concatenate([prediction, trueval], axis=0)
 
-        if 'train_generator' in scope:
+        if self.generator_name in scope:
             self.gui_actions = [
                 ('Next batch', self._next_batch),
             ]
 
     @functools.cached_property
     def data_source(self):
-        if 'x_train' in self.scope:
-            return self.scope['x_train'], self.scope['y_train']
-        return next(self.scope['train_generator'])
+        if self.static_name in self.scope:
+            return self.scope[self.static_name], self.scope[self.static_label_name]
+        return next(self.scope[self.generator_name])
 
     def _next_batch(self, scope, storage):
-        self.data_source = next(self.scope['train_generator'])
+        self.data_source = next(self.scope[self.generator_name])
         if scope.get('rerun_callback', None) is not None:
             scope['rerun_callback']()
